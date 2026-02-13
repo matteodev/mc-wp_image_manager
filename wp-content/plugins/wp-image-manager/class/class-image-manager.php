@@ -64,16 +64,5 @@ class Image_Manager {
         }
     }
 
-    public function uninstall() {
-        //Eliminazione tabella immagini
-        $this->db->query("DROP TABLE IF EXISTS $this->table_name");
-        //Eliminazione tabella immagini escluse
-        $this->db->query("DROP TABLE IF EXISTS $this->table_name_exclude");
-        //Eliminazione repository immagini
-        $upload_dir = wp_upload_dir();
-        $image_dir = $upload_dir['basedir'] . '/' . $this->getRepo();
-        if ( is_dir( $image_dir ) ) {
-            rmdir( $image_dir );
-        }
-    }
+  public function desactivate() {}
 }
