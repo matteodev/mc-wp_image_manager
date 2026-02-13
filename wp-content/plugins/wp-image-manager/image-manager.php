@@ -20,4 +20,4 @@ $image_manager->init();
 
 //Hooks per installazione e disinstallazione
 register_activation_hook( __FILE__, array( $image_manager, 'install' ) );
-register_deactivation_hook( __FILE__, array( $image_manager, 'uninstall' ) );
+register_uninstall_hook( __FILE__, array( $image_manager, 'uninstall' ) );
