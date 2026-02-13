@@ -15,6 +15,15 @@ class Image_Manager {
     }
 
     public function install() {
+        $this->prepare_tables();
+        $this->prepare_options();
+        $this->prepare_repository();
+
+        //Carico immagini di esempio
+        $this->preset_images(10);
+    }
+
+    function prepare_tables(){
         $charset_collate = $this->db->get_charset_collate();
         //Preparazione della tabella per le immagini
         $sql_tb_images = "CREATE TABLE $this->table_name (
@@ -36,28 +45,25 @@ class Image_Manager {
             PRIMARY KEY  (id)
         ) $charset_collate;";
 
-        //Salvo parametri di configurazione
-        add_option( 'mc_image_manager_options', array(
-            'image_dir_name' => uniqid('mc_images_'),
-        ));
-
-        add_option( 'mc_image_manager_devmode', true );
-
-
         require_once ABSPATH . 'wp-admin/includes/upgrade.php';
         dbDelta( $sql_tb_images );
         dbDelta( $sql_tb_images_exclude );
+    }
 
-        //Creazione Repository immagini nella cartella uploads
+    function prepare_options(){
+        $default_options = array(
+            'image_dir_name' => 'image_manager_repository',
+            'devmode' => false,
+        );
+        add_option( 'mc_image_manager_options', $default_options );
+    }
+
+    function prepare_repository(){
         $upload_dir = wp_upload_dir();
         $image_dir = $upload_dir['basedir'] . '/' . $this->getRepo();
         if ( ! is_dir( $image_dir ) ) {
             mkdir( $image_dir, 0755, true );
         }
-
-        //Carico immagini di esempio
-        $this->preset_images(10);
-
     }
 
     function preset_images($limit = 10){
@@ -99,16 +105,12 @@ class Image_Manager {
 
     function getRepo() {
         $options = get_option( 'mc_image_manager_options' );
-        if ( isset( $options['image_dir_name'] ) ) {
-            return $options['image_dir_name'];
-        } else {
-             return '';
-        }
+        return $options['image_dir_name'];
     }
 
   public function desactivate() {
     //Se la devmode è disattivata, non eseguo nessuna operazione di pulizia, per evitare di perdere dati in fase di sviluppo
-    if( get_option( 'mc_image_manager_devmode' ) === false ) {
+     if( get_option( 'mc_image_manager_options' )['devmode'] === false ) {
         return;
     }
     //Pulisco le tabelle create durante l'installazione
