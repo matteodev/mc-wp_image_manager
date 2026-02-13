@@ -37,9 +37,11 @@ class Image_Manager {
         ) $charset_collate;";
 
         //Salvo parametri di configurazione
-         add_option( 'mc_image_manager_options', array(
+        add_option( 'mc_image_manager_options', array(
             'image_dir_name' => uniqid('mc_images_'),
         ));
+
+        add_option( 'mc_image_manager_devmode', true );
 
 
         require_once ABSPATH . 'wp-admin/includes/upgrade.php';
@@ -60,13 +62,13 @@ class Image_Manager {
 
     function preset_images($limit = 10){
         //Carico X immagini di esempio prese da api esterne e le salvo nel repository, inserendo i relativi dati nella tabella
-        $response = wp_remote_get( 'https://jsonplaceholder.typicode.com/photos?_limit='.$limit );
+        $response = wp_remote_get( 'https://picsum.photos/v2/list?limit=' . $limit );
         if ( is_array( $response ) && ! is_wp_error( $response ) ) {
             $body = wp_remote_retrieve_body( $response );
             $images = json_decode( $body, true );
             foreach ( $images as $image ) {
-                $image_url = $image['url'];
-                $image_title = $image['title'];
+                $image_url = $image['download_url'];
+                $image_title = "Example Image " . $image['id'];
                 $image_description = "Immagine di esempio";
 
                 $image_metadati = $this->get_metadati_from_image($image_url);
@@ -104,5 +106,22 @@ class Image_Manager {
         }
     }
 
-  public function desactivate() {}
+  public function desactivate() {
+    //Se la devmode è disattivata, non eseguo nessuna operazione di pulizia, per evitare di perdere dati in fase di sviluppo
+    if( get_option( 'mc_image_manager_devmode' ) === false ) {
+        return;
+    }
+    //Pulisco le tabelle create durante l'installazione
+    $this->db->query( "DROP TABLE IF EXISTS $this->table_name" );
+    $this->db->query( "DROP TABLE IF EXISTS $this->table_name_exclude" );
+    //Rimuovo la cartella del repository immagini
+    $upload_dir = wp_upload_dir();
+    $image_dir = $upload_dir['basedir'] . '/' . $this->getRepo();
+    if ( is_dir( $image_dir ) ) {
+        rmdir( $image_dir );
+    }
+    //Rimuovo le opzioni salvate
+    delete_option( 'mc_image_manager_options' );
+
+  }
 }
