@@ -26,5 +26,5 @@
 </ul>
 
 
-*La disattivazione fa una pulizia delle tabelle, opzioni, pagine e directory: mi serve in fase di sviluppo per testare: c'è un parametro devmode per disabilitare queste funzioni.
-**Il repo viene creato nella cartella upload di WP --> image_manager_repository
+<p>*La disattivazione fa una pulizia delle tabelle, opzioni, pagine e directory: mi serve in fase di sviluppo per testare: c'è un parametro devmode per disabilitare queste funzioni.</p>
+<p>**Il repo viene creato nella cartella upload di WP --> image_manager_repository</p>
