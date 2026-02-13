@@ -17,4 +17,10 @@ if ( is_dir( $image_dir ) ) {
 }
 //Eliminazione opzioni di configurazione
 delete_option( 'mc_image_manager_options' );
+//Eliminazione pagina creata durante l'installazione
+$page_name = 'Image Manager';
+$page = get_page_by_title( $page_name, OBJECT, 'page' );
+if ( $page ) {
+    wp_delete_post( $page->ID, true );
+}
 ?>
