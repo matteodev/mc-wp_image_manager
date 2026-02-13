@@ -53,6 +53,46 @@ class Image_Manager {
             mkdir( $image_dir, 0755, true );
         }
 
+        //Carico immagini di esempio
+        $this->preset_images(10);
+
+    }
+
+    function preset_images($limit = 10){
+        //Carico X immagini di esempio prese da api esterne e le salvo nel repository, inserendo i relativi dati nella tabella
+        $response = wp_remote_get( 'https://jsonplaceholder.typicode.com/photos?_limit='.$limit );
+        if ( is_array( $response ) && ! is_wp_error( $response ) ) {
+            $body = wp_remote_retrieve_body( $response );
+            $images = json_decode( $body, true );
+            foreach ( $images as $image ) {
+                $image_url = $image['url'];
+                $image_title = $image['title'];
+                $image_description = "Immagine di esempio";
+
+                $image_metadati = $this->get_metadati_from_image($image_url);
+                if($image_metadati === false){
+                    $image_metadati = json_encode( array());
+                }else{
+                    $image_metadati = json_encode( $image_metadati );
+                }
+                
+                $this->db->insert( $this->table_name, array(
+                    'title' => $image_title,
+                    'description' => $image_description,
+                    'image_url' => $image_url,
+                    'metadati' => $image_metadati,
+                    'created_at' => current_time( 'mysql' ),
+                ));
+            }
+        }
+        if ( is_wp_error( $response ) ) {
+            return;
+        }
+    }
+
+    function get_metadati_from_image($image_url){
+        $metadati = exif_read_data($image_url, 0, true);
+        return $metadati;
     }
 
     function getRepo() {
