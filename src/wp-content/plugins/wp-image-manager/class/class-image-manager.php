@@ -9,16 +9,14 @@ class Image_Manager {
         $this->db = $wpdb;
         $this->table_images = $wpdb->prefix . 'mc_images';
         $this->table_images_exclude = $wpdb->prefix . 'mc_images_exclude';
+    }
 
+    function init() {
+        $this->register_shortcode();
         //Richieste AJAX
         add_action( 'wp_ajax_get_images_data', array( $this, 'getImages' ) );
         add_action( 'wp_ajax_nopriv_get_images_data', array( $this, 'getImages' ) );
-    }
-    public function init() {
-       //Creo shortcode per il frontend
-       add_shortcode( 'mc_image_manager', array( $this, 'render_frontend' ) );
-
-       //Creo una pagina nel frontend e gli assegno lo shortcode
+        //Creo una pagina nel frontend e gli assegno lo shortcode
        add_action( 'init', array( $this, 'create_frontend_page' ) );
     }
 
@@ -31,7 +29,7 @@ class Image_Manager {
                 'post_name' => $page_name,
                 'post_type' => 'page',
                 'post_status' => 'publish',
-                'post_content' => '[mc_image_manager]'
+                'post_content' => '[mc_image_manager style="table"]',
             ) );
         }
 
@@ -40,11 +38,14 @@ class Image_Manager {
         update_option( 'page_on_front', $page->ID );
     }
 
-    function render_frontend() {
+    function render_frontend( $atts ) {
         ob_start();
-        include plugin_dir_path( __FILE__ ) . '../frontend/image-manager.php';
-        return ob_get_clean();
-    }
+        $style = $atts['style'] ?? 'table';
+        if($style !== 'table' && $style !== 'card') {
+            $style = 'table';
+        }
+        include_once (plugin_dir_path( __FILE__ ) . '../frontend/image-manager.php');
+        return ob_get_clean();}
 
     public function install() {
         $this->prepare_tables();
@@ -53,6 +54,10 @@ class Image_Manager {
 
         //Carico immagini di esempio
         $this->preset_images(10);
+    }
+
+    function register_shortcode() {
+        add_shortcode( 'mc_image_manager', array( $this, 'render_frontend' ) );
     }
 
     function prepare_tables(){
@@ -146,26 +151,14 @@ class Image_Manager {
     function getImages(){
         $nonce = $_POST['nonce'];
         if ( ! wp_verify_nonce( $nonce, 'get_images_data_nonce' ) ) die ( 'Nonce non valido' );
-        $images = $this->db->get_results( "SELECT * FROM $this->table_images" );
+        $query  = "SELECT *, DATE_FORMAT(created_at, '%d-%m-%Y %H:%i:%s') AS created_at 
+        FROM $this->table_images";
+        $images = $this->db->get_results( $query );
+        $response = array();
         if ( $images ) {
-            $result = '{ "data": [';
-            foreach ( $images as $image ) {
-                if($image->owner_id == 0) $owner ='API';
-                else $owner = get_userdata( $image->owner_id )->user_nicename;
-                $result .= '{';
-                $result .= '"0": "' . esc_html( $image->title ) . '",';
-                $result .= '"1": "' . date( 'd/m/Y H:i:s', strtotime( $image->created_at ) ) . '",';
-                $result .= '"2": "<img src=\"' . esc_url( $image->image_url ) . '\" alt=\"' . esc_html( $image->title ) . '\" width=\"100\"/>",';
-                $result .= '"3": "' . esc_html( $owner ) . '"';
-                $result .= '},';
-            }
-            $result = rtrim($result, ',');
-            $result .= '] }';
-            echo $result;
-            wp_die();
-        } else {
-            wp_send_json_success( array( 'data' => array() ) );
+            $response['data'] = $images;
         }
+        wp_send_json_success( $response );
     }
 
     public function desactivate() {

@@ -1,0 +1,46 @@
+
+.image-manager-layout, .image-manager-panel{
+    max-width: 70% !important;
+}
+.image-manager-layout .table {
+    width: 100%;
+    border-collapse: collapse;
+}
+.image-manager-layout .table th, .image-manager-layout .table td {
+    border: 1px solid #ddd;
+    padding: 8px;
+}
+.image-manager-layout .table th {
+    background-color: #f2f2f2;
+    text-align: left;
+}
+.image-manager-layout .card {
+    margin-bottom: 20px;
+}
+.image-manager-layout .card img {
+    max-width: 100%;
+    height: auto;
+}
+.image-manager-layout .card-body {
+    padding: 15px;
+}
+.image-manager-layout .card-title {
+    font-size: 18px;
+    margin-bottom: 10px;
+}
+.image-manager-layout .card-text {
+    font-size: 14px;
+    color: #555;
+}
+.image-manager-layout .text-muted {
+    font-size: 12px;
+    color: #999;
+}
+.image-manager-layout .row {
+    display: flex;
+    flex-wrap: wrap;
+}
+.image-manager-layout small {
+    font-size: 10px;
+    color: #999;
+}
