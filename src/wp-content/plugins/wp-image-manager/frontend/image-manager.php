@@ -35,6 +35,7 @@ wp_enqueue_style('image-manager-css', plugin_dir_url( __FILE__ ) . 'style.css' )
     var im_grid;
     var im_style = '<?php echo $style; ?>';
     var itemPerPage = 5;
+    var currentPage = 1;
 
     jQuery(document).ready(function() {
         //Rimuovo il titolo del post creato automaticamente da WordPress
@@ -49,7 +50,7 @@ wp_enqueue_style('image-manager-css', plugin_dir_url( __FILE__ ) . 'style.css' )
                 //Imposto la paginazione
                 setPagination(im_grid.data.length, itemPerPage);
                 //Mostro la prima pagina
-                changePage(1, itemPerPage);
+                changePage(currentPage, itemPerPage);
             } else {
                 console.error('Errore nel recupero dei dati');
             }
@@ -70,6 +71,7 @@ wp_enqueue_style('image-manager-css', plugin_dir_url( __FILE__ ) . 'style.css' )
     }
     
     function changePage(page, itemsPerPage) {
+        currentPage = page;
         var startIndex = (page - 1) * itemsPerPage;
         var endIndex = startIndex + itemsPerPage;
         var pageData = im_grid.data.slice(startIndex, endIndex);
@@ -171,10 +173,10 @@ wp_enqueue_style('image-manager-css', plugin_dir_url( __FILE__ ) . 'style.css' )
         if(style==undefined) style='<?php echo $style; ?>';
         if(style === 'table') {
             im_style = 'card';
-            changePage(1, itemPerPage);
+            changePage(currentPage, itemPerPage);
         } else {
             im_style = 'table';
-            changePage(1, itemPerPage);
+            changePage(currentPage, itemPerPage);
         }
     }
 </script>
