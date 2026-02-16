@@ -48,6 +48,11 @@ wp_enqueue_style('image-manager-css', plugin_dir_url( __FILE__ ) . 'style.css' )
         //Rimuovo il titolo del post creato automaticamente da WordPress
         jQuery('.wp-block-post-title').remove();
 
+        //Avvio ImageManager
+        loadImageManager();
+    });
+
+    function loadImageManager(){
         jQuery.post( "<?php echo admin_url( 'admin-ajax.php' ); ?>", {
             action: "get_images_data",
             nonce: "<?php echo wp_create_nonce( 'get_images_data_nonce' ); ?>"
@@ -76,7 +81,7 @@ wp_enqueue_style('image-manager-css', plugin_dir_url( __FILE__ ) . 'style.css' )
             jQuery('.image-manager-panel #data-search').val('');
             jQuery('.image-manager-panel #image-sort').val(jQuery('.image-manager-panel #image-sort option:first').val());
         });
-    });
+    }
 
     function setPagination(totalItems, itemsPerPage) {
         var totalPages = Math.ceil(totalItems / itemsPerPage);
@@ -208,6 +213,7 @@ wp_enqueue_style('image-manager-css', plugin_dir_url( __FILE__ ) . 'style.css' )
             nonce: "<?php echo wp_create_nonce( 'add_image_nonce' ); ?>"
         }, function(response) {
             if(response.success) {
+                //Preparo la modale
                 jQuery('.image-manager-modal').html(`
                     <div class="modal-dialog" role="document">
                         <div class="modal-content p-4">
@@ -224,6 +230,11 @@ wp_enqueue_style('image-manager-css', plugin_dir_url( __FILE__ ) . 'style.css' )
                     </div>
                 `);
                 jQuery('.image-manager-modal').modal('show');
+
+                //Ricarico la griglia di immagini dopo il caricamento
+                jQuery('.image-manager-modal').on('hidden.bs.modal', function () {
+                    loadImageManager();
+                });
             } else {
                 alert('Si è verificato un errore');
             }
