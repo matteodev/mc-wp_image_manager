@@ -100,15 +100,12 @@ wp_enqueue_style('image-manager-css', plugin_dir_url( __FILE__ ) . 'style.css' )
         var filteredData = im_grid.data.filter(function(newData) {
             return newData.title.toLowerCase().includes(searchTerm);
         });
-        <?php 
-        if($style === 'card' ) { ?>
-            renderCards(filteredData);
-        <?php 
-        }if( $style === 'table' ) { ?>
+        if(im_style === 'table') {
             renderTable(filteredData);
-        <?php 
-        } 
-        ?>
+        }
+        if(im_style === 'card') {
+            renderCards(filteredData);
+        }
     }
 
     function changeView(style){
