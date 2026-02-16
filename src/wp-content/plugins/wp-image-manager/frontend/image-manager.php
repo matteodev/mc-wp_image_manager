@@ -8,11 +8,11 @@ wp_enqueue_style('image-manager-css', plugin_dir_url( __FILE__ ) . 'style.css' )
     <div class="row mb-3">
         <div class="col-md-4">
             <label for="data-search" class="form-label">Ricerca</label>
-            <input type="text" onkeyup="filterData()" id="data-search" class="form-control" placeholder="Filtra per titolo..." >
+            <input type="text" onkeyup="filterData()" id="data-search" class="form-control form-control-sm" placeholder="Filtra per titolo..." >
         </div>
         <div class="col-md-4">
             <label for="image-sort" class="form-label">Ordina per</label>
-            <select id="image-sort" class="form-control" onchange="orderData(this.value)">
+            <select id="image-sort" class="form-control form-control-sm" onchange="orderData(this.value)">
                 <option value="title_asc">Titolo (A-Z)</option>
                 <option value="title_desc">Titolo (Z-A)</option>
                 <option value="created_at_desc">Data (nuove prima)</option>
@@ -113,21 +113,20 @@ wp_enqueue_style('image-manager-css', plugin_dir_url( __FILE__ ) . 'style.css' )
     function orderData(value) {
         switch(value) {
             case 'created_at_desc':
-                im_grid.data.sort((a, b) => new Date(b.created_at) - new Date(a.created_at));
-                break;
+                im_grid.data.sort((a, b) => b.created_at_timestamp - a.created_at_timestamp);
+            break;
             case 'created_at_asc':
-                var dataTimestamp = im_grid.data.map(item => ({...item, created_at_timestamp: new Date(item.created_at).getTime()}));
                 im_grid.data.sort((a, b) => a.created_at_timestamp - b.created_at_timestamp);
-                break;
+            break;
             case 'title_asc':
                 im_grid.data.sort((a, b) => a.title.localeCompare(b.title));
-                break;
+            break;
             case 'title_desc':
                 im_grid.data.sort((a, b) => b.title.localeCompare(a.title));
-                break;
+            break;
             case 'random':
                 im_grid.data.sort(() => Math.random() - 0.5);
-                break;
+            break;
         }
         if(im_style === 'table') {
             renderTable(im_grid.data);

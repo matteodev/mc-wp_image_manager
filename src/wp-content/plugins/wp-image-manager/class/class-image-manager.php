@@ -151,7 +151,9 @@ class Image_Manager {
     function getImages(){
         $nonce = $_POST['nonce'];
         if ( ! wp_verify_nonce( $nonce, 'get_images_data_nonce' ) ) die ( 'Nonce non valido' );
-        $query  = "SELECT *, DATE_FORMAT(created_at, '%d-%m-%Y %H:%i:%s') AS created_at 
+        $query  = "SELECT *, 
+        DATE_FORMAT(created_at, '%d-%m-%Y %H:%i:%s') AS created_at, 
+        UNIX_TIMESTAMP(created_at) AS created_at_timestamp 
         FROM $this->table_images ORDER BY title ASC";
         $images = $this->db->get_results( $query );
         $response = array();
