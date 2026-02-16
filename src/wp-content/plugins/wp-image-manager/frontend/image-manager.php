@@ -54,6 +54,10 @@ wp_enqueue_style('image-manager-css', plugin_dir_url( __FILE__ ) . 'style.css' )
             } else {
                 console.error('Errore nel recupero dei dati');
             }
+
+            //Resetto campi di ricerca e ordinamento
+            jQuery('.image-manager-panel #data-search').val('');
+            jQuery('.image-manager-panel #image-sort').val(jQuery('.image-manager-panel #image-sort option:first').val());
         });
     });
 
@@ -142,6 +146,10 @@ wp_enqueue_style('image-manager-css', plugin_dir_url( __FILE__ ) . 'style.css' )
         if(im_style === 'card') {
             renderCards(filteredData);
         }
+        // Se il campo di ricerca è vuoto, mostra tutti i dati con la paginazione corrente
+        if(searchTerm === '') {
+            changePage(currentPage, itemPerPage);
+        }
     }
 
     function orderData(value) {
@@ -162,11 +170,8 @@ wp_enqueue_style('image-manager-css', plugin_dir_url( __FILE__ ) . 'style.css' )
                 im_grid.data.sort(() => Math.random() - 0.5);
             break;
         }
-        if(im_style === 'table') {
-            renderTable(im_grid.data);
-        } else {
-            renderCards(im_grid.data);
-        }
+        //Richiamo la pagina corrente per applicare l'ordinamento
+        changePage(currentPage, itemPerPage);
     }
 
     function changeView(style){
