@@ -196,6 +196,12 @@ class Image_Manager {
         $images = $this->db->get_results( $query );
         $response = array();
         if ( $images ) {
+            foreach($images as $image){
+                if($image->owner_id != "0"){
+                    $upload_dir = wp_upload_dir();
+                    $image->image_url =  $upload_dir['baseurl'] . '/' . $this->getRepo() . '/' . $image->image_url;
+                }
+            }
             $response['data'] = $images;
         }
         wp_send_json_success( $response );
@@ -241,7 +247,8 @@ class Image_Manager {
         //Upload del file nel repository
         $upload_dir = wp_upload_dir();
         $image_dir = $upload_dir['basedir'] . '/' . $this->getRepo();
-        $image_path = $image_dir . '/' . $image_file['name'];
+        //Do un nome unico al file
+        $image_path = $image_dir . '/' . uniqid() . '.' . pathinfo($image_file['name'], PATHINFO_EXTENSION);
         if ( ! move_uploaded_file( $image_file['tmp_name'], $image_path ) ) {
             wp_send_json_error( array( 'message' => 'Errore durante il caricamento dell\'immagine' ) );
         }
