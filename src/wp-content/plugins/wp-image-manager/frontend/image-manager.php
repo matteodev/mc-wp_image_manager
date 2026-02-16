@@ -24,11 +24,18 @@ wp_enqueue_style('image-manager-css', plugin_dir_url( __FILE__ ) . 'style.css' )
             <button class="btn btn-secondary btn-sm mt-4" onclick="changeView(im_style)">Cambia Visualizzazione</button>
         </div>
     </div>
+    <div class="row mb-3">
+        <div class="col-md-12">
+            <div id="pagination"></div>
+        </div>
+    </div>
 </div>
 <div class="image-manager-layout"></div>
 <script>
     var im_grid;
     var im_style = '<?php echo $style; ?>';
+    var itemPerPage = 5;
+
     jQuery(document).ready(function() {
         //Rimuovo il titolo del post creato automaticamente da WordPress
         jQuery('.wp-block-post-title').remove();
@@ -39,16 +46,41 @@ wp_enqueue_style('image-manager-css', plugin_dir_url( __FILE__ ) . 'style.css' )
         }, function(response) {
             if(response.success) {
                 im_grid = response.data;
-                <?php if($style === 'table' ) { ?>
-                    renderTable(im_grid.data);
-                <?php } else if( $style === 'card' ) { ?>
-                    renderCards(im_grid.data);
-                <?php } ?>
+                //Imposto la paginazione
+                setPagination(im_grid.data.length, itemPerPage);
+                //Mostro la prima pagina
+                changePage(1, itemPerPage);
             } else {
                 console.error('Errore nel recupero dei dati');
             }
         });
     });
+
+    function setPagination(totalItems, itemsPerPage) {
+        var totalPages = Math.ceil(totalItems / itemsPerPage);
+        var paginationHtml = '<nav><ul class="pagination justify-content-center">';
+        for (var i = 1; i <= totalPages; i++) {
+            paginationHtml += `
+            <li class="page-item">
+                <a class="page-link" href="#" onclick="changePage(${i}, ${itemsPerPage})">${i}</a>
+            </li>`;
+        }
+        paginationHtml += '</ul></nav>';
+        jQuery('.image-manager-panel #pagination').html(paginationHtml);
+    }
+    
+    function changePage(page, itemsPerPage) {
+        var startIndex = (page - 1) * itemsPerPage;
+        var endIndex = startIndex + itemsPerPage;
+        var pageData = im_grid.data.slice(startIndex, endIndex);
+        if(im_style === 'table') {
+            renderTable(pageData);
+        } 
+        if(im_style === 'card') {
+            renderCards(pageData);
+        }
+    }
+
     function renderTable(data) {
         var tableHtml = `
         <table class="table">
@@ -138,11 +170,11 @@ wp_enqueue_style('image-manager-css', plugin_dir_url( __FILE__ ) . 'style.css' )
     function changeView(style){
         if(style==undefined) style='<?php echo $style; ?>';
         if(style === 'table') {
-            renderCards(im_grid.data);
             im_style = 'card';
+            changePage(1, itemPerPage);
         } else {
-            renderTable(im_grid.data);
             im_style = 'table';
+            changePage(1, itemPerPage);
         }
     }
 </script>
