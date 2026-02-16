@@ -1,5 +1,6 @@
 <?php
 wp_enqueue_script( 'jquery' );
+wp_enqueue_script( 'bootstrap-js', 'https://stackpath.bootstrapcdn.com/bootstrap/4.5.2/js/bootstrap.bundle.min.js' );
 wp_enqueue_style( 'bootstrap-css', 'https://stackpath.bootstrapcdn.com/bootstrap/4.5.2/css/bootstrap.min.css' );
 wp_enqueue_style( 'font-awesome-css', 'https://cdnjs.cloudflare.com/ajax/libs/font-awesome/5.15.3/css/all.min.css' );
 wp_enqueue_style('image-manager-css', plugin_dir_url( __FILE__ ) . 'style.css' );
@@ -9,6 +10,7 @@ wp_enqueue_style('image-manager-css', plugin_dir_url( __FILE__ ) . 'style.css' )
 </div>
 <div class="image-manager-panel">
     <div class="row mb-3">
+        <div class="col-md-12 mb-2">ID: <?php echo $this->session_id; ?></div>
         <div class="col-md-4">
             <label for="data-search" class="form-label">Ricerca</label>
             <input type="text" onkeyup="filterData()" id="data-search" class="form-control form-control-sm" placeholder="Filtra per titolo..." >
@@ -25,6 +27,7 @@ wp_enqueue_style('image-manager-css', plugin_dir_url( __FILE__ ) . 'style.css' )
         </div>
         <div class="col-md-4 text-right">
             <button class="btn btn-secondary btn-sm mt-4" onclick="changeView(im_style)">Cambia Visualizzazione</button>
+            <button class="btn btn-primary btn-sm mt-4" onclick="addImage()">Aggiungi immagine</button>
         </div>
     </div>
     <div class="row mb-3">
@@ -34,6 +37,7 @@ wp_enqueue_style('image-manager-css', plugin_dir_url( __FILE__ ) . 'style.css' )
     </div>
 </div>
 <div class="image-manager-layout"></div>
+<div class="image-manager-modal modal"></div>
 <script>
     var im_grid;
     var im_style = '<?php echo $style; ?>';
@@ -197,4 +201,33 @@ wp_enqueue_style('image-manager-css', plugin_dir_url( __FILE__ ) . 'style.css' )
             changePage(currentPage, itemPerPage);
         }
     }
+
+    function addImage() {
+       jQuery.post( "<?php echo admin_url( 'admin-ajax.php' ); ?>", {
+            action: "add_image",
+            nonce: "<?php echo wp_create_nonce( 'add_image_nonce' ); ?>"
+        }, function(response) {
+            if(response.success) {
+                jQuery('.image-manager-modal').html(`
+                    <div class="modal-dialog" role="document">
+                        <div class="modal-content p-4">
+                            <div class="modal-header">
+                                <h5 class="modal-title">Caricamento immagine</h5>
+                                <button type="button" class="close" data-dismiss="modal" aria-label="Close">
+                                    <span aria-hidden="true">&times;</span>
+                                </button>
+                            </div>
+                            <div class="modal-body">
+                                ${response.data.page}
+                            </div>
+                        </div>
+                    </div>
+                `);
+                jQuery('.image-manager-modal').modal('show');
+            } else {
+                alert('Si è verificato un errore');
+            }
+        });
+    }
+
 </script>

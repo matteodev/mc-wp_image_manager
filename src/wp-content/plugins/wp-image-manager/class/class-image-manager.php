@@ -4,18 +4,52 @@ class Image_Manager {
     private $table_images;
     private $table_images_exclude;
     private $db;
+    private $session_id;
     function __construct() {
         global $wpdb;
         $this->db = $wpdb;
         $this->table_images = $wpdb->prefix . 'mc_images';
         $this->table_images_exclude = $wpdb->prefix . 'mc_images_exclude';
+        $this->session_id = $this->initSession();
     }
+
+    function initSession(){
+        //Verifico se esiste già una sessione per l'utente tramite un cookie, 
+        // altrimenti ne creo una nuova
+
+        $session_id = $this->getSessionIdFromCookie();
+        if($session_id === false){
+            $session_id = $this->createSessionId();
+            $this->saveSessionIdInCookie($session_id);
+        }
+        return $session_id;
+    }
+
+    function getSessionIdFromCookie(){
+        if(isset($_COOKIE['mc_image_manager_session_id'])){
+            return $_COOKIE['mc_image_manager_session_id'];
+        }
+        return false;
+    }
+
+    function createSessionId(){
+        return bin2hex(random_bytes(16));
+    }
+
+    function saveSessionIdInCookie($session_id){
+        setcookie('mc_image_manager_session_id', $session_id, time() + (86400 * 30)*12, '/'); // 12 mesi
+    }
+
 
     function init() {
         $this->register_shortcode();
         //Richieste AJAX
         add_action( 'wp_ajax_get_images_data', array( $this, 'getImages' ) );
         add_action( 'wp_ajax_nopriv_get_images_data', array( $this, 'getImages' ) );
+
+        add_action( 'wp_ajax_add_image', array( $this, 'imageUploader' ) );
+        add_action( 'wp_ajax_nopriv_add_image', array( $this, 'imageUploader' ) );
+
         //Creo una pagina nel frontend e gli assegno lo shortcode
         add_action( 'init', array( $this, 'create_frontend_page' ) );
     }
@@ -45,7 +79,8 @@ class Image_Manager {
             $style = 'table';
         }
         include_once (plugin_dir_path( __FILE__ ) . '../frontend/image-manager.php');
-        return ob_get_clean();}
+        return ob_get_clean();
+    }
 
     public function install() {
         $this->prepare_tables();
@@ -161,6 +196,13 @@ class Image_Manager {
             $response['data'] = $images;
         }
         wp_send_json_success( $response );
+    }
+
+    function imageUploader(){
+        $nonce = $_POST['nonce'];
+        if ( ! wp_verify_nonce( $nonce, 'add_image_nonce' ) ) die ( 'Nonce non valido' );
+        $render = "<p class='text-center'>Da implementare</p>";
+        wp_send_json_success( array( 'page' => $render ) );
     }
 
     public function desactivate() {

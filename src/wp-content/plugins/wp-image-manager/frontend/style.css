@@ -45,6 +45,15 @@
     font-size: 14px;
     color: #555;
 }
+.image-manager-modal {
+    position: fixed;
+    inset: 0;
+    display: flex;
+    align-items: center;      
+    justify-content: center;
+    z-index: 9999;
+    font-size:14px;
+}
 .image-manager-layout .text-muted {
     font-size: 12px;
     color: #999;
