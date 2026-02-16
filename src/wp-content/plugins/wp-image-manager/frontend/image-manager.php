@@ -59,7 +59,13 @@ wp_enqueue_style('image-manager-css', plugin_dir_url( __FILE__ ) . 'style.css' )
                 //Nascondo lo spinner di caricamento
                 jQuery('.loading-spinner').css('display', 'none');
             } else {
-                console.error('Errore nel recupero dei dati');
+                jQuery('.image-manager-layout').html(
+                    `<div class="alert alert-danger" role="alert">Errore durante il recupero dei dati</div>`
+                );
+                //Nascondo lo spinner di caricamento
+                jQuery('.loading-spinner').css('display', 'none');
+                //Mostro il layout
+                jQuery('.image-manager-layout').css('display', 'block');
             }
 
             //Resetto campi di ricerca e ordinamento
