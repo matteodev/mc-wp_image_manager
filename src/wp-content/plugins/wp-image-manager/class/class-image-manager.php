@@ -107,7 +107,7 @@ class Image_Manager {
             description text NOT NULL,
             image_url varchar(255) NOT NULL,
             metadati json NOT NULL,
-            owner_id mediumint(9) NOT NULL DEFAULT 0,
+            owner_id varchar(32) NOT NULL DEFAULT '',
             created_at datetime DEFAULT '0000-00-00 00:00:00' NOT NULL,
             PRIMARY KEY  (id)
         ) $charset_collate;";
