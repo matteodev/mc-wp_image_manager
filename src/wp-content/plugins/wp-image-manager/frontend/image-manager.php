@@ -4,6 +4,9 @@ wp_enqueue_style( 'bootstrap-css', 'https://stackpath.bootstrapcdn.com/bootstrap
 wp_enqueue_style( 'font-awesome-css', 'https://cdnjs.cloudflare.com/ajax/libs/font-awesome/5.15.3/css/all.min.css' );
 wp_enqueue_style('image-manager-css', plugin_dir_url( __FILE__ ) . 'style.css' );
 ?>
+<div class="loading-spinner">
+    <div class="spinner-border text-primary" role="status"></div>
+</div>
 <div class="image-manager-panel">
     <div class="row mb-3">
         <div class="col-md-4">
@@ -51,6 +54,10 @@ wp_enqueue_style('image-manager-css', plugin_dir_url( __FILE__ ) . 'style.css' )
                 setPagination(im_grid.data.length, itemPerPage);
                 //Mostro la prima pagina
                 changePage(currentPage, itemPerPage);
+                //Mostro il layout
+                jQuery('.image-manager-panel, .image-manager-layout').css('display', 'block');
+                //Nascondo lo spinner di caricamento
+                jQuery('.loading-spinner').css('display', 'none');
             } else {
                 console.error('Errore nel recupero dei dati');
             }
