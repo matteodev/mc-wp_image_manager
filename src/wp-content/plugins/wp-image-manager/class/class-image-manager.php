@@ -10,10 +10,10 @@ class Image_Manager {
         $this->db = $wpdb;
         $this->table_images = $wpdb->prefix . 'mc_images';
         $this->table_images_exclude = $wpdb->prefix . 'mc_images_exclude';
-        $this->session_id = $this->initSession();
+        $this->session_id = $this->checkSession();
     }
 
-    function initSession(){
+    function checkSession(){
         //Verifico se esiste già una sessione per l'utente tramite un cookie, 
         // altrimenti ne creo una nuova
 
@@ -49,6 +49,9 @@ class Image_Manager {
 
         add_action( 'wp_ajax_add_image', array( $this, 'imageUploader' ) );
         add_action( 'wp_ajax_nopriv_add_image', array( $this, 'imageUploader' ) );
+
+        add_action('wp_ajax_upload_image', array( $this, 'uploadNewImage' ));
+        add_action('wp_ajax_nopriv_upload_image', array( $this, 'uploadNewImage' ));
 
         //Creo una pagina nel frontend e gli assegno lo shortcode
         add_action( 'init', array( $this, 'create_frontend_page' ) );
@@ -201,8 +204,68 @@ class Image_Manager {
     function imageUploader(){
         $nonce = $_POST['nonce'];
         if ( ! wp_verify_nonce( $nonce, 'add_image_nonce' ) ) die ( 'Nonce non valido' );
-        $render = "<p class='text-center'>Da implementare</p>";
+        ob_start();
+        include_once( plugin_dir_path( __FILE__ ). '../inc/file-uploader.php' );
+        $render = ob_get_clean();
         wp_send_json_success( array( 'page' => $render ) );
+    }
+
+    function uploadNewImage(){
+        $nonce = $_POST['nonce'];
+        if ( ! wp_verify_nonce( $nonce, 'add_image_nonce' ) ){
+            die ( wp_send_json_error( array( 'message' => 'Parametri non validi' ) ) );
+        }
+        
+        $titolo = esc_attr($_POST['title']);
+        $descrizione = esc_attr($_POST['description']);
+
+        //Controllo che sia stato inviato un file
+        if(isset($_FILES['image-file'])){
+            $image_file = $_FILES['image-file'];
+        }else{
+            wp_send_json_error( array( 'message' => 'Nessun file immagine selezionato' ) );
+        }
+        if($image_file['size'] === 0){
+            wp_send_json_error( array( 'message' => 'Il file è corrotto' ) );
+        }
+        //Controllo che sia un file immagine
+        $finfo = new finfo(FILEINFO_MIME_TYPE);
+        $image_type = $finfo->file($image_file['tmp_name']);
+        if(!str_contains($image_type, 'image')){
+            wp_send_json_error( array( 'message' => 'Il file non è un immagine' ) );
+        }
+
+        //Check della sessione
+        $this->checkSession();
+
+        //Upload del file nel repository
+        $upload_dir = wp_upload_dir();
+        $image_dir = $upload_dir['basedir'] . '/' . $this->getRepo();
+        $image_path = $image_dir . '/' . $image_file['name'];
+        if ( ! move_uploaded_file( $image_file['tmp_name'], $image_path ) ) {
+            wp_send_json_error( array( 'message' => 'Errore durante il caricamento dell\'immagine' ) );
+        }
+        //Ottengo i metadati dell'immagine
+        $image_metadati = $this->get_metadati_from_image($image_path);
+        if($image_metadati === false){
+            $image_metadati = json_encode( array());
+        }else{
+            $image_metadati = json_encode( $image_metadati );
+        }
+        //Inserisco l'immagine nel database
+        $result = $this->db->insert( $this->table_images, array(
+            'title' => $titolo,
+            'description' => $descrizione,
+            'image_url' => $image_file['name'],
+            'metadati' => $image_metadati,
+            'owner_id' => $this->getSessionIdFromCookie(),
+            'created_at' => current_time( 'mysql' ),
+        ));
+        if($result === false){
+            wp_send_json_error( array( 'message' => 'Errore durante l\'inserimento dell\'immagine' ) );
+        }
+        //In caso di successo, invio la risposta
+        wp_send_json_success( array( 'message' => 'Immagine inserita con successo' ) );
     }
 
     public function desactivate() {

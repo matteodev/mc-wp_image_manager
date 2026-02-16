@@ -45,7 +45,7 @@
     font-size: 14px;
     color: #555;
 }
-.image-manager-modal {
+.image-manager-modal>.modal-dialog {
     position: fixed;
     inset: 0;
     display: flex;
