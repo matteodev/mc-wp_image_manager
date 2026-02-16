@@ -17,7 +17,7 @@ class Image_Manager {
         add_action( 'wp_ajax_get_images_data', array( $this, 'getImages' ) );
         add_action( 'wp_ajax_nopriv_get_images_data', array( $this, 'getImages' ) );
         //Creo una pagina nel frontend e gli assegno lo shortcode
-       add_action( 'init', array( $this, 'create_frontend_page' ) );
+        add_action( 'init', array( $this, 'create_frontend_page' ) );
     }
 
     function create_frontend_page() {
@@ -152,7 +152,7 @@ class Image_Manager {
         $nonce = $_POST['nonce'];
         if ( ! wp_verify_nonce( $nonce, 'get_images_data_nonce' ) ) die ( 'Nonce non valido' );
         $query  = "SELECT *, DATE_FORMAT(created_at, '%d-%m-%Y %H:%i:%s') AS created_at 
-        FROM $this->table_images";
+        FROM $this->table_images ORDER BY title ASC";
         $images = $this->db->get_results( $query );
         $response = array();
         if ( $images ) {

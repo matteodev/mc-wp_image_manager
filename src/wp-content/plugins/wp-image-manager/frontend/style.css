@@ -1,6 +1,11 @@
 
+
+.image-manager-panel .form-label {
+    font-weight: bold;
+}
 .image-manager-layout, .image-manager-panel{
     max-width: 70% !important;
+    font-size: 16px;
 }
 .image-manager-layout .table {
     width: 100%;

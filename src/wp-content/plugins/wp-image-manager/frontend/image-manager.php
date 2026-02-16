@@ -7,19 +7,21 @@ wp_enqueue_style('image-manager-css', plugin_dir_url( __FILE__ ) . 'style.css' )
 <div class="image-manager-panel">
     <div class="row mb-3">
         <div class="col-md-4">
+            <label for="data-search" class="form-label">Ricerca</label>
             <input type="text" onkeyup="filterData()" id="data-search" class="form-control" placeholder="Filtra per titolo..." >
         </div>
         <div class="col-md-4">
-            <select id="image-sort" class="form-control">
-                <option value="created_at_desc">Data (nuove prima)</option>
-                <option value="created_at_asc">Data (vecchie prima)</option>
+            <label for="image-sort" class="form-label">Ordina per</label>
+            <select id="image-sort" class="form-control" onchange="orderData(this.value)">
                 <option value="title_asc">Titolo (A-Z)</option>
                 <option value="title_desc">Titolo (Z-A)</option>
+                <option value="created_at_desc">Data (nuove prima)</option>
+                <option value="created_at_asc">Data (vecchie prima)</option>
                 <option value="random">A caso</option>
             </select>
         </div>
         <div class="col-md-4 text-right">
-            <button class="btn btn-primary" onclick="changeView(im_style)">Cambia Visualizzazione</button>
+            <button class="btn btn-secondary btn-sm mt-4" onclick="changeView(im_style)">Cambia Visualizzazione</button>
         </div>
     </div>
 </div>
@@ -59,13 +61,13 @@ wp_enqueue_style('image-manager-css', plugin_dir_url( __FILE__ ) . 'style.css' )
                 </tr>
             </thead>
         <tbody>`;
-        data.forEach(function(image) {
-            var owner = image.owner_id == 0 ? 'API' : image.owner_id; // Sostituisci con il nome utente se necessario
+        data.forEach(function(item) {
+            var owner = item.owner_id == 0 ? 'API' : item.owner_id;
             tableHtml += `
             <tr>
-                <td>${image.title}</td>
-                <td>${image.created_at}</td>
-                <td><img src="${image.image_url}" alt="${image.title}" style="max-width: 100px;"></td>
+                <td>${item.title}</td>
+                <td>${item.created_at}</td>
+                <td><img src="${item.image_url}" alt="${item.title}" style="max-width: 100px;"></td>
                 <td>${owner}</td>
             </tr>`;
         });
@@ -75,17 +77,17 @@ wp_enqueue_style('image-manager-css', plugin_dir_url( __FILE__ ) . 'style.css' )
         
     function renderCards(data) {
         var cardHtml = '<div class="row">';
-        data.forEach(function(image) {
-            var owner = image.owner_id == 0 ? 'API' : image.owner_id; // Sostituisci con il nome utente se necessario
+        data.forEach(function(item) {
+            var owner = item.owner_id == 0 ? 'API' : item.owner_id;
             cardHtml += `
             <div class="col-md-4 mb-4">
                 <div class="card">
-                    <img src="${image.image_url}" alt="${image.title}" class="card-img-top">
+                    <img src="${item.image_url}" alt="${item.title}" class="card-img-top">
                     <div class="card-body">
-                        <h6 class="card-title">${image.title}</h6>
-                        <h5 class="card-text">${image.description}</h5>
+                        <h6 class="card-title">${item.title}</h6>
+                        <h5 class="card-text">${item.description}</h5>
                         <p class="text-muted"><i class="fas fa-user"></i> ${owner}</p>
-                        <p class="text-muted"><i class="fas fa-calendar-alt"></i> ${image.created_at}</p>
+                        <p class="text-muted"><i class="fas fa-calendar-alt"></i> ${item.created_at}</p>
                     </div>
                 </div>
             </div>`;
@@ -105,6 +107,32 @@ wp_enqueue_style('image-manager-css', plugin_dir_url( __FILE__ ) . 'style.css' )
         }
         if(im_style === 'card') {
             renderCards(filteredData);
+        }
+    }
+
+    function orderData(value) {
+        switch(value) {
+            case 'created_at_desc':
+                im_grid.data.sort((a, b) => new Date(b.created_at) - new Date(a.created_at));
+                break;
+            case 'created_at_asc':
+                var dataTimestamp = im_grid.data.map(item => ({...item, created_at_timestamp: new Date(item.created_at).getTime()}));
+                im_grid.data.sort((a, b) => a.created_at_timestamp - b.created_at_timestamp);
+                break;
+            case 'title_asc':
+                im_grid.data.sort((a, b) => a.title.localeCompare(b.title));
+                break;
+            case 'title_desc':
+                im_grid.data.sort((a, b) => b.title.localeCompare(a.title));
+                break;
+            case 'random':
+                im_grid.data.sort(() => Math.random() - 0.5);
+                break;
+        }
+        if(im_style === 'table') {
+            renderTable(im_grid.data);
+        } else {
+            renderCards(im_grid.data);
         }
     }
 
