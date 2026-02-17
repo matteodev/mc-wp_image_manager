@@ -203,32 +203,33 @@ class Image_Manager {
         $this->checkSession();
         $session_id = $this->getSessionIdFromCookie();
 
-      $query ="SELECT i.*, 
-        DATE_FORMAT(i.created_at, '%d-%m-%Y %H:%i:%s') AS created_at, 
-        UNIX_TIMESTAMP(i.created_at) AS created_at_timestamp
-        FROM $this->table_images i
-        LEFT JOIN $this->table_images_exclude ie 
-            ON i.owner_id = ie.owner_id
-            AND JSON_CONTAINS(ie.image_ids, JSON_QUOTE(i.id))
-        WHERE ie.owner_id IS NULL
+        $query ="SELECT i.*, DATE_FORMAT(i.created_at, '%d-%m-%Y %H:%i:%s') AS created_at, 
+        UNIX_TIMESTAMP(i.created_at) AS created_at_timestamp FROM $this->table_images i 
         ORDER BY i.title ASC";
 
         $images = $this->db->get_results( $query );
         $response = array();
         if ( $images ) {
-            foreach($images as $image){
+            //Verifico se l'utente ha immagini nascoste
+            $query ="SELECT image_ids FROM $this->table_images_exclude WHERE owner_id = %s";
+            $hidden_images = $this->db->get_results( $this->db->prepare( $query, $session_id ) );
+            $hidden_images = json_decode($hidden_images[0]->image_ids, true);
+
+            foreach($images as $key => $image){
+                if(in_array($image->id, $hidden_images)){
+                    unset($images[$key]);
+                    continue;
+                }
                 if($image->owner_id != "0"){
                     $upload_dir = wp_upload_dir();
                     $image->image_url =  $upload_dir['baseurl'] . '/' . $this->getRepo() . '/' . $image->image_url;
                 }
+                $response['data'][] = $image;
             }
-            $response['data'] = $images;
 
-            //Verifico se l'utente ha immagini nascoste
-            $query ="SELECT id FROM $this->table_images_exclude WHERE owner_id = %s";
-            $hidden_images = $this->db->get_results( $this->db->prepare( $query, $session_id ) );
-            if($hidden_images){
-                $response['hidden_count'] = count($hidden_images);
+
+            if(count($hidden_images) > 0){
+                $response['hidden_count'] = $hidden_images;
             }else{
                 $response['hidden_count'] = 0;
             }
