@@ -11,11 +11,11 @@ wp_enqueue_style('image-manager-css', plugin_dir_url( __FILE__ ) . 'style.css' )
 <div class="image-manager-panel">
     <div class="row mb-3">
         <div class="col-md-12 mb-2">ID: <?php echo $this->session_id; ?></div>
-        <div class="col-md-4">
+        <div class="col-md-3">
             <label for="data-search" class="form-label">Ricerca</label>
             <input type="text" onkeyup="filterData()" id="data-search" class="form-control form-control-sm" placeholder="Filtra per titolo..." >
         </div>
-        <div class="col-md-4">
+        <div class="col-md-3">
             <label for="image-sort" class="form-label">Ordina per</label>
             <select id="image-sort" class="form-control form-control-sm" onchange="orderData(this.value)">
                 <option value="title_asc">Titolo (A-Z)</option>
@@ -25,7 +25,7 @@ wp_enqueue_style('image-manager-css', plugin_dir_url( __FILE__ ) . 'style.css' )
                 <option value="random">A caso</option>
             </select>
         </div>
-        <div class="col-md-4 text-right">
+        <div id="list-actions" class="col-md-6 text-right">
             <button class="btn btn-secondary btn-sm mt-4" onclick="changeView(im_style)">Cambia Visualizzazione</button>
             <button class="btn btn-primary btn-sm mt-4" onclick="addImage()">Aggiungi immagine</button>
         </div>
@@ -43,6 +43,7 @@ wp_enqueue_style('image-manager-css', plugin_dir_url( __FILE__ ) . 'style.css' )
     var im_style = '<?php echo $style; ?>';
     var itemPerPage = 5;
     var currentPage = 1;
+    var selectedImagesToHide = [];
 
     jQuery(document).ready(function() {
         //Rimuovo il titolo del post creato automaticamente da WordPress
@@ -114,17 +115,29 @@ wp_enqueue_style('image-manager-css', plugin_dir_url( __FILE__ ) . 'style.css' )
         <table class="table">
             <thead>
                 <tr>
-                    <th>Titolo</th>
-                    <th>Data</th>
-                    <th>Immagine</th>
-                    <th>Caricata da</th>
+                    <th scope="col"><input type="checkbox" id="select-all"></th>
+                    <th scope="col">Titolo</th>
+                    <th scope="col">Data</th>
+                    <th scope="col">Immagine</th>
+                    <th scope="col">Caricata da</th>
                 </tr>
             </thead>
         <tbody>`;
         data.forEach(function(item) {
             var owner = item.owner_id == 0 ? 'API' : item.owner_id;
+
+            //Se l'immagine è stata selezionata per essere nascosta, preparo la grafica
+            if(selectedImagesToHide.includes(item.id)) {
+                var checked = "checked";
+                var bgClass = 'bg-info';
+            } else {
+                var checked = "";
+                var bgClass = '';
+            }
+
             tableHtml += `
-            <tr>
+            <tr id="image-${item.id}" class="${bgClass}">
+                <td><input type="checkbox" class="image-checkbox" value="${item.id}" ${checked}></td>
                 <td>${item.title}</td>
                 <td>${item.created_at}</td>
                 <td><img src="${item.image_url}" alt="${item.title}" style="max-width: 100px;"></td>
@@ -133,7 +146,61 @@ wp_enqueue_style('image-manager-css', plugin_dir_url( __FILE__ ) . 'style.css' )
         });
         tableHtml += '</tbody></table>';
         jQuery('.image-manager-layout').html(tableHtml);
+
+        //Seleziona tutto
+        jQuery('.image-manager-layout #select-all').on('change', function() {
+            if(jQuery(this).is(':checked')) {
+                checked = true;
+                jQuery('.image-manager-layout .image-checkbox').prop('checked', true);
+                jQuery('.image-manager-layout tr').addClass('bg-info');
+            } else {
+                checked = false;
+                jQuery('.image-manager-layout .image-checkbox').prop('checked', false);
+                jQuery('.image-manager-layout tr').removeClass('bg-info');
+            }
+            selectToHide("all",checked);
+        });
+        //Selezione singola
+        jQuery('.image-manager-layout .image-checkbox').on('change', function() {
+            if(jQuery(this).is(':checked')) {
+                checked = true;
+                jQuery('.image-manager-layout tr#image-' + this.value).addClass('bg-info');
+            } else {
+                checked = false;
+                jQuery('.image-manager-layout tr#image-' + this.value).removeClass('bg-info');
+            }
+            selectToHide(this.value, checked);
+        });
     }
+
+    function selectToHide(imageId, checked) {
+        if(checked) {
+            if(imageId === "all") {
+                im_grid.data.forEach(function(item) {
+                    selectedImagesToHide.push(item.id);
+                });
+            } else {
+                selectedImagesToHide.push(imageId);
+            }
+        } else {
+            if(imageId === "all") {
+                selectedImagesToHide = [];
+            } else {
+                selectedImagesToHide = selectedImagesToHide.filter(id => id !== imageId);
+            }
+        }
+
+        //Se ci sono immagini selezionate per essere nascoste, mostro il pulsante
+        if(selectedImagesToHide.length > 0) {
+            jQuery('.image-manager-panel #list-actions').append(`
+            <button id="hide-selected-images" class="btn btn-secondary btn-sm mt-4" 
+            onclick="hideSelectedImages()">Nascondi immagini</button>
+            `);
+        } else {
+            jQuery('.image-manager-panel button#hide-selected-images').remove();
+        }
+    }
+
         
     function renderCards(data) {
         var cardHtml = '<div class="row">';
