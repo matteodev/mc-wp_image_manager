@@ -25,7 +25,7 @@ wp_enqueue_style('image-manager-css', plugin_dir_url( __FILE__ ) . 'style.css' )
                 <option value="random">A caso</option>
             </select>
         </div>
-        <div id="list-actions" class="col-md-6 text-right">
+        <div id="list-actions" class="col-md-6 pt-2 text-right">
             <button class="btn btn-secondary btn-sm mt-4" onclick="changeView(im_style)">Cambia Visualizzazione</button>
             <button class="btn btn-primary btn-sm mt-4" onclick="addImage()">Aggiungi immagine</button>
         </div>
@@ -86,7 +86,7 @@ wp_enqueue_style('image-manager-css', plugin_dir_url( __FILE__ ) . 'style.css' )
 
     function setPagination(totalItems, itemsPerPage) {
         var totalPages = Math.ceil(totalItems / itemsPerPage);
-        var paginationHtml = '<nav><ul class="pagination justify-content-center">';
+        var paginationHtml = '<nav><ul class="pagination justify-content-center my-2">';
         for (var i = 1; i <= totalPages; i++) {
             paginationHtml += `
             <li class="page-item">
@@ -210,7 +210,7 @@ wp_enqueue_style('image-manager-css', plugin_dir_url( __FILE__ ) . 'style.css' )
 
             cardHtml += `
             <div class="col-md-4 mb-4">
-                <div id="image-${item.id}" class="card">
+                <div id="image-${item.id}" class="card h-100">
                     <div class="card-img-overlay">
                         <input type="checkbox" class="image-checkbox" value="${item.id}" ${checked}>
                     </div>
