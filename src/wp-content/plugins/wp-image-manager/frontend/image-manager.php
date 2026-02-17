@@ -111,11 +111,19 @@ wp_enqueue_style('image-manager-css', plugin_dir_url( __FILE__ ) . 'style.css' )
     }
 
     function renderTable(data) {
+        var checkAll = "";
+        var checked = "";
+        var bgClass = "";
+
+        if(selectedImagesToHide.length > 0) {
+            checkAll = "checked";
+        }
+
         var tableHtml = `
         <table class="table">
             <thead>
                 <tr>
-                    <th scope="col"><input type="checkbox" id="select-all"></th>
+                    <th scope="col"><input type="checkbox" id="select-all" ${checkAll}></th>
                     <th scope="col">Titolo</th>
                     <th scope="col">Data</th>
                     <th scope="col">Immagine</th>
@@ -128,11 +136,8 @@ wp_enqueue_style('image-manager-css', plugin_dir_url( __FILE__ ) . 'style.css' )
 
             //Se l'immagine è stata selezionata per essere nascosta, preparo la grafica
             if(selectedImagesToHide.includes(item.id)) {
-                var checked = "checked";
-                var bgClass = 'bg-info';
-            } else {
-                var checked = "";
-                var bgClass = '';
+                checked = "checked";
+                bgClass = 'bg-info';
             }
 
             tableHtml += `
@@ -150,27 +155,48 @@ wp_enqueue_style('image-manager-css', plugin_dir_url( __FILE__ ) . 'style.css' )
         //Seleziona tutto
         jQuery('.image-manager-layout #select-all').on('change', function() {
             if(jQuery(this).is(':checked')) {
-                checked = true;
+                is_checked = true;
                 jQuery('.image-manager-layout .image-checkbox').prop('checked', true);
                 jQuery('.image-manager-layout tr').addClass('bg-info');
             } else {
-                checked = false;
+                is_checked = false;
                 jQuery('.image-manager-layout .image-checkbox').prop('checked', false);
                 jQuery('.image-manager-layout tr').removeClass('bg-info');
             }
-            selectToHide("all",checked);
+            selectToHide("all",is_checked);
         });
         //Selezione singola
         jQuery('.image-manager-layout .image-checkbox').on('change', function() {
             if(jQuery(this).is(':checked')) {
-                checked = true;
+                is_checked = true;
                 jQuery('.image-manager-layout tr#image-' + this.value).addClass('bg-info');
             } else {
-                checked = false;
+                is_checked = false;
                 jQuery('.image-manager-layout tr#image-' + this.value).removeClass('bg-info');
             }
-            selectToHide(this.value, checked);
+            selectToHide(this.value, is_checked);
         });
+    }
+
+    function renderCards(data) {
+        var cardHtml = '<div class="row">';
+        data.forEach(function(item) {
+            var owner = item.owner_id == 0 ? 'API' : item.owner_id;
+            cardHtml += `
+            <div class="col-md-4 mb-4">
+                <div class="card">
+                    <img src="${item.image_url}" alt="${item.title}" class="card-img-top">
+                    <div class="card-body">
+                        <h6 class="card-title">${item.title}</h6>
+                        <h5 class="card-text">${item.description}</h5>
+                        <p class="text-muted"><i class="fas fa-user"></i> ${owner}</p>
+                        <p class="text-muted"><i class="fas fa-calendar-alt"></i> ${item.created_at}</p>
+                    </div>
+                </div>
+            </div>`;
+        });
+        cardHtml += '</div>';
+        jQuery('.image-manager-layout').html(cardHtml);
     }
 
     function selectToHide(imageId, checked) {
@@ -191,36 +217,17 @@ wp_enqueue_style('image-manager-css', plugin_dir_url( __FILE__ ) . 'style.css' )
         }
 
         //Se ci sono immagini selezionate per essere nascoste, mostro il pulsante
+        jQuery('.image-manager-panel button#hide-selected-images').remove();
+
         if(selectedImagesToHide.length > 0) {
+            if(selectedImagesToHide.length == 1) var label = "immagine";
+            else var label = "immagini";
+
             jQuery('.image-manager-panel #list-actions').append(`
             <button id="hide-selected-images" class="btn btn-secondary btn-sm mt-4" 
-            onclick="hideSelectedImages()">Nascondi immagini</button>
+            onclick="hideSelectedImages()">Nascondi ${selectedImagesToHide.length} ${label}</button>
             `);
-        } else {
-            jQuery('.image-manager-panel button#hide-selected-images').remove();
         }
-    }
-
-        
-    function renderCards(data) {
-        var cardHtml = '<div class="row">';
-        data.forEach(function(item) {
-            var owner = item.owner_id == 0 ? 'API' : item.owner_id;
-            cardHtml += `
-            <div class="col-md-4 mb-4">
-                <div class="card">
-                    <img src="${item.image_url}" alt="${item.title}" class="card-img-top">
-                    <div class="card-body">
-                        <h6 class="card-title">${item.title}</h6>
-                        <h5 class="card-text">${item.description}</h5>
-                        <p class="text-muted"><i class="fas fa-user"></i> ${owner}</p>
-                        <p class="text-muted"><i class="fas fa-calendar-alt"></i> ${item.created_at}</p>
-                    </div>
-                </div>
-            </div>`;
-        });
-        cardHtml += '</div>';
-        jQuery('.image-manager-layout').html(cardHtml);
     }
 
     function filterData() {
