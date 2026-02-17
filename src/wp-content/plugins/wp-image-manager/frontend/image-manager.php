@@ -111,11 +111,17 @@ wp_enqueue_style('image-manager-css', plugin_dir_url( __FILE__ ) . 'style.css' )
     }
 
     function renderTable(data) {
+        if(data.length == 0) {
+            jQuery('.image-manager-layout').html(
+                `<div class="alert alert-warning" role="alert">Nessuna immagine trovata</div>`
+            );
+            return;
+        }
         var checkAll = "";
         var checked = "";
         var bgClass = "";
 
-        if(selectedImagesToHide.length == im_grid.data.length) {
+        if(selectedImagesToHide.length == im_grid.data.length ) {
             checkAll = "checked";
         }
 
@@ -182,6 +188,12 @@ wp_enqueue_style('image-manager-css', plugin_dir_url( __FILE__ ) . 'style.css' )
     }
 
     function renderCards(data) {
+        if(data.length == 0) {
+            jQuery('.image-manager-layout').html(
+                `<div class="alert alert-warning" role="alert">Nessuna immagine trovata</div>`
+            );
+            return;
+        }
         var checkAll = "";
         var checked = "";
         var bgClass = "";
@@ -293,7 +305,18 @@ wp_enqueue_style('image-manager-css', plugin_dir_url( __FILE__ ) . 'style.css' )
             selected_images: selectedImagesToHide
         }, function(response) {
             if(response.success) {
-                //TODO
+                //Rimuovo le immagini nascoste dalla griglia
+                im_grid.data = im_grid.data.filter(function(item) {
+                    return !selectedImagesToHide.includes(item.id);
+                });
+                //Svuoto la lista delle immagini selezionate per essere nascoste
+                selectedImagesToHide = [];
+                //Rimuovo il pulsante per nascondere le immagini selezionate
+                jQuery('.image-manager-panel button#hide-selected-images').remove();
+                //Reimposto la paginazione
+                setPagination(im_grid.data.length, itemPerPage);
+                //Aggiorno la griglia
+                changePage(currentPage, itemPerPage);
             } else {
                 alert('Si è verificato un errore durante l\'operazione.');
             }

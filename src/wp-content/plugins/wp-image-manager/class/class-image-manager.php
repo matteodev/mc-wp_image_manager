@@ -126,7 +126,7 @@ class Image_Manager {
         $sql_tb_images_exclude = "CREATE TABLE $this->table_images_exclude (
             id mediumint(9) NOT NULL AUTO_INCREMENT,
             image_ids json NOT NULL,
-            user_id mediumint(9) NOT NULL,
+            owner_id varchar(32) NOT NULL DEFAULT '',
             created_at datetime DEFAULT '0000-00-00 00:00:00' NOT NULL,
             PRIMARY KEY  (id)
         ) $charset_collate;";
@@ -199,10 +199,20 @@ class Image_Manager {
     function getImages(){
         $nonce = $_POST['nonce'];
         if ( ! wp_verify_nonce( $nonce, 'get_images_data_nonce' ) ) die ( 'Nonce non valido' );
-        $query  = "SELECT *, 
-        DATE_FORMAT(created_at, '%d-%m-%Y %H:%i:%s') AS created_at, 
-        UNIX_TIMESTAMP(created_at) AS created_at_timestamp 
-        FROM $this->table_images ORDER BY title ASC";
+        //Check della sessione
+        $this->checkSession();
+        $session_id = $this->getSessionIdFromCookie();
+
+      $query ="SELECT i.*, 
+        DATE_FORMAT(i.created_at, '%d-%m-%Y %H:%i:%s') AS created_at, 
+        UNIX_TIMESTAMP(i.created_at) AS created_at_timestamp 
+        FROM $this->table_images i
+        LEFT JOIN $this->table_images_exclude ie 
+            ON i.owner_id = ie.owner_id
+            AND JSON_CONTAINS(ie.image_ids, JSON_QUOTE(i.id))
+        WHERE ie.owner_id IS NULL
+        ORDER BY i.title ASC";
+
         $images = $this->db->get_results( $query );
         $response = array();
         if ( $images ) {
@@ -213,6 +223,8 @@ class Image_Manager {
                 }
             }
             $response['data'] = $images;
+        }else{
+            $response['data'] = array();
         }
         wp_send_json_success( $response );
     }
@@ -289,16 +301,20 @@ class Image_Manager {
     function hideSelectedImages(){
         $nonce = $_POST['nonce'];
         if ( ! wp_verify_nonce( $nonce, 'hide_selected_images_nonce' ) ) die ( 'Nonce non valido' );
+      
         //Sanizzo la POST
         $selectedImagesToHide = array_map('esc_attr', $_POST['selected_images']);
         if(empty($selectedImagesToHide)){
             wp_send_json_error( array( 'message' => 'Nessuna immagine selezionata' ) );
         }
-        $id_user = $this->checkSession();
+        
+        //Check della sessione
+        $this->checkSession();
+
         //Nascondo le immagini selezionate
         $result = $this->db->insert( $this->table_images_exclude, array(
             'image_ids' => json_encode( $selectedImagesToHide ),
-            'user_id' => $id_user,
+            'owner_id' => $this->getSessionIdFromCookie(),
             'created_at' => current_time( 'mysql' ),
         ));
         
