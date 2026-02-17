@@ -44,17 +44,27 @@ class Image_Manager {
     function init() {
         $this->register_shortcode();
         //Richieste AJAX
+        $this->set_ajax_actions();
+        //Creo una pagina nel frontend e gli assegno lo shortcode
+        add_action( 'init', array( $this, 'create_frontend_page' ) );
+    }
+
+    function set_ajax_actions(){
+        //Richieste per ottenere le immagini
         add_action( 'wp_ajax_get_images_data', array( $this, 'getImages' ) );
         add_action( 'wp_ajax_nopriv_get_images_data', array( $this, 'getImages' ) );
 
+        //Richieste per caricare la modale
         add_action( 'wp_ajax_add_image', array( $this, 'imageUploader' ) );
         add_action( 'wp_ajax_nopriv_add_image', array( $this, 'imageUploader' ) );
-
+        
+        //Richieste per caricare un'immagine
         add_action('wp_ajax_upload_image', array( $this, 'uploadNewImage' ));
         add_action('wp_ajax_nopriv_upload_image', array( $this, 'uploadNewImage' ));
 
-        //Creo una pagina nel frontend e gli assegno lo shortcode
-        add_action( 'init', array( $this, 'create_frontend_page' ) );
+        //Richieste per nascondere le immagini selezionate
+        add_action('wp_ajax_hide_selected_images', array( $this, 'hideSelectedImages' ));
+        add_action('wp_ajax_nopriv_hide_selected_images', array( $this, 'hideSelectedImages' ));
     }
 
     function create_frontend_page() {
@@ -115,7 +125,7 @@ class Image_Manager {
         //Preparazione della tabella per le immagini escluse dall'utente
         $sql_tb_images_exclude = "CREATE TABLE $this->table_images_exclude (
             id mediumint(9) NOT NULL AUTO_INCREMENT,
-            image_id mediumint(9) NOT NULL,
+            image_ids json NOT NULL,
             user_id mediumint(9) NOT NULL,
             created_at datetime DEFAULT '0000-00-00 00:00:00' NOT NULL,
             PRIMARY KEY  (id)
@@ -275,6 +285,30 @@ class Image_Manager {
         //In caso di successo, invio la risposta
         wp_send_json_success( array( 'message' => 'Immagine inserita con successo' ) );
     }
+
+    function hideSelectedImages(){
+        $nonce = $_POST['nonce'];
+        if ( ! wp_verify_nonce( $nonce, 'hide_selected_images_nonce' ) ) die ( 'Nonce non valido' );
+        //Sanizzo la POST
+        $selectedImagesToHide = array_map('esc_attr', $_POST['selected_images']);
+        if(empty($selectedImagesToHide)){
+            wp_send_json_error( array( 'message' => 'Nessuna immagine selezionata' ) );
+        }
+        $id_user = $this->checkSession();
+        //Nascondo le immagini selezionate
+        $result = $this->db->insert( $this->table_images_exclude, array(
+            'image_ids' => json_encode( $selectedImagesToHide ),
+            'user_id' => $id_user,
+            'created_at' => current_time( 'mysql' ),
+        ));
+        
+        if($result === false){
+            wp_send_json_error( array( 'message' => 'Errore durante la nascosto delle immagini' ) );
+        }
+        //In caso di successo, invio la risposta
+        wp_send_json_success( array( 'message' => 'Immagini nascoste con successo' ) );
+    }
+
 
     public function desactivate() {
         //Se la devmode è disattivata, non eseguo nessuna operazione di pulizia, per evitare di perdere dati in fase di sviluppo

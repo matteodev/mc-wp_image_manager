@@ -285,6 +285,21 @@ wp_enqueue_style('image-manager-css', plugin_dir_url( __FILE__ ) . 'style.css' )
         }
     }
 
+    function hideSelectedImages() {
+        //Chiamo la funzione per nascondere le immagini selezionate
+        jQuery.post("<?php echo admin_url('admin-ajax.php'); ?>", {
+            action: 'hide_selected_images',
+            nonce:"<?php echo wp_create_nonce('hide_selected_images_nonce'); ?>",
+            selected_images: selectedImagesToHide
+        }, function(response) {
+            if(response.success) {
+                //TODO
+            } else {
+                alert('Si è verificato un errore durante l\'operazione.');
+            }
+        });
+    }
+
     function filterData() {
         var searchTerm = jQuery('#data-search').val().toLowerCase();
         // Filtra i dati in base al titolo
