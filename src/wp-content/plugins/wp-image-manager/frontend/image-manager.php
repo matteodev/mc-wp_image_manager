@@ -81,6 +81,13 @@ wp_enqueue_style('image-manager-css', plugin_dir_url( __FILE__ ) . 'style.css' )
             //Resetto campi di ricerca e ordinamento
             jQuery('.image-manager-panel #data-search').val('');
             jQuery('.image-manager-panel #image-sort').val(jQuery('.image-manager-panel #image-sort option:first').val());
+        
+            //Se ci sono immagini nascoste mostro il bottone
+            if(im_grid.hidden_count > 0){
+                jQuery('#list-actions').append(
+                    `<button class="btn btn-secondary btn-sm mt-4" onclick="showHiddenImages()">Gestisci immagini nascoste</button>`
+                );
+            }
         });
     }
 
@@ -406,6 +413,10 @@ wp_enqueue_style('image-manager-css', plugin_dir_url( __FILE__ ) . 'style.css' )
                 alert('Si è verificato un errore');
             }
         });
+    }
+
+    function showHiddenImages() {
+        //TODO: Richiama la griglia di immagini nascoste
     }
 
 </script>
