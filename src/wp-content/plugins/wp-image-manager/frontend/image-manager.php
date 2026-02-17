@@ -115,7 +115,7 @@ wp_enqueue_style('image-manager-css', plugin_dir_url( __FILE__ ) . 'style.css' )
         var checked = "";
         var bgClass = "";
 
-        if(selectedImagesToHide.length > 0) {
+        if(selectedImagesToHide.length == im_grid.data.length) {
             checkAll = "checked";
         }
 
@@ -138,6 +138,9 @@ wp_enqueue_style('image-manager-css', plugin_dir_url( __FILE__ ) . 'style.css' )
             if(selectedImagesToHide.includes(item.id)) {
                 checked = "checked";
                 bgClass = 'bg-info';
+            }else{
+                checked = "";
+                bgClass = "";
             }
 
             tableHtml += `
@@ -179,14 +182,40 @@ wp_enqueue_style('image-manager-css', plugin_dir_url( __FILE__ ) . 'style.css' )
     }
 
     function renderCards(data) {
+        var checkAll = "";
+        var checked = "";
+        var bgClass = "";
         var cardHtml = '<div class="row">';
+
+        if(selectedImagesToHide.length == im_grid.data.length) {
+            checkAll = "checked";
+        }
+
+        cardHtml += `
+            <div class="col-md-12 mb-4">
+                <input type="checkbox" id="select-all" ${checkAll}> Seleziona tutto
+            </div>
+        `;
         data.forEach(function(item) {
             var owner = item.owner_id == 0 ? 'API' : item.owner_id;
+
+            //Se l'immagine è stata selezionata per essere nascosta, preparo la grafica
+            if(selectedImagesToHide.includes(item.id)) {
+                checked = "checked";
+                bgClass = 'bg-info';
+            } else {
+                checked = "";
+                bgClass = "";
+            }
+
             cardHtml += `
             <div class="col-md-4 mb-4">
-                <div class="card">
+                <div id="image-${item.id}" class="card">
+                    <div class="card-img-overlay">
+                        <input type="checkbox" class="image-checkbox" value="${item.id}" ${checked}>
+                    </div>
                     <img src="${item.image_url}" alt="${item.title}" class="card-img-top">
-                    <div class="card-body">
+                    <div class="card-body ${bgClass}">
                         <h6 class="card-title">${item.title}</h6>
                         <h5 class="card-text">${item.description}</h5>
                         <p class="text-muted"><i class="fas fa-user"></i> ${owner}</p>
@@ -197,6 +226,32 @@ wp_enqueue_style('image-manager-css', plugin_dir_url( __FILE__ ) . 'style.css' )
         });
         cardHtml += '</div>';
         jQuery('.image-manager-layout').html(cardHtml);
+
+        //Seleziona tutto
+        jQuery('.image-manager-layout #select-all').on('change', function() {
+            if(jQuery(this).is(':checked')) {
+                is_checked = true;
+                jQuery('.image-manager-layout .image-checkbox').prop('checked', true);
+                jQuery('.image-manager-layout .card .card-body').addClass('bg-info');
+            } else {
+                is_checked = false;
+                jQuery('.image-manager-layout .image-checkbox').prop('checked', false);
+                jQuery('.image-manager-layout .card .card-body').removeClass('bg-info');
+            }
+            selectToHide("all",is_checked);
+        });
+
+        //Selezione singola
+        jQuery('.image-manager-layout .image-checkbox').on('change', function() {
+            if(jQuery(this).is(':checked')) {
+                is_checked = true;
+                jQuery('.image-manager-layout .card#image-' + this.value + ' .card-body').addClass('bg-info');
+            } else {
+                is_checked = false;
+                jQuery('.image-manager-layout .card#image-' + this.value + ' .card-body').removeClass('bg-info');
+            }
+            selectToHide(this.value, is_checked);
+        });
     }
 
     function selectToHide(imageId, checked) {
