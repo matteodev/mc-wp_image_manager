@@ -69,6 +69,10 @@ class Image_Manager {
         //Richieste per ripristinare le immagini nascoste
         add_action('wp_ajax_restore_selected_images', array( $this, 'restoreSelectedImages' ));
         add_action('wp_ajax_nopriv_restore_selected_images', array( $this, 'restoreSelectedImages' ));
+
+        //Richieste per ottenere i dettagli di un immagine
+        add_action('wp_ajax_get_image_detail', array( $this, 'getImageDetail' ));
+        add_action('wp_ajax_nopriv_get_image_detail', array( $this, 'getImageDetail' ));
     }
 
     function create_frontend_page() {
@@ -245,7 +249,6 @@ class Image_Manager {
         wp_send_json_success( $response );
     }
 
-
     function imageUploader(){
         $nonce = $_POST['nonce'];
         if ( ! wp_verify_nonce( $nonce, 'add_image_nonce' ) ) die ( 'Nonce non valido' );
@@ -398,6 +401,32 @@ class Image_Manager {
         //In caso di successo, invio la risposta
         wp_send_json_success( array( 'message' => 'Immagini ripristinate con successo' ) );
     }
+
+    function getImageDetail(){
+        $nonce = $_POST['nonce'];
+        if ( ! wp_verify_nonce( $nonce, 'get_image_detail_nonce' ) ) die ( 'Nonce non valido' );
+      
+        //Check della sessione
+        $session_id = $this->checkSession();
+        //Sanizzo la POST
+        $image_id = esc_attr($_POST['image_id']);
+        if(empty($image_id)){
+            wp_send_json_error( array( 'message' => 'Nessuna immagine selezionata' ) );
+        }
+        //Recupero i dettagli dell'immagine
+        $query ="SELECT * FROM $this->table_images WHERE id = %s";
+        $rows = $this->db->get_results( $this->db->prepare( $query, $image_id ) );
+        if(empty($rows)){
+            wp_send_json_error( array( 'message' => 'Immagine non trovata' ) );
+        }
+        //Preparo la modale
+        ob_start();
+        $image = $rows[0];
+        include_once( plugin_dir_path( __FILE__ ). '../inc/file-details.php' );
+        $render = ob_get_clean();
+        wp_send_json_success( array( 'page' => $render ) );
+    }
+        
 
 
     public function desactivate() {

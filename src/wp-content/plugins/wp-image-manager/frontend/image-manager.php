@@ -206,7 +206,7 @@ wp_enqueue_style('image-manager-css', plugin_dir_url( __FILE__ ) . 'style.css' )
                 <td><input type="checkbox" class="image-checkbox" value="${item.id}" ${checked}></td>
                 <td>${item.title}</td>
                 <td>${item.created_at}</td>
-                <td><img src="${item.image_url}" alt="${item.title}" style="max-width: 100px;"></td>
+                <td><img class="img-item" onclick="openDetail('${item.id}')" src="${item.image_url}" alt="${item.title}" style="max-width: 100px;"></td>
                 <td>${owner}</td>
             </tr>`;
         });
@@ -278,7 +278,7 @@ wp_enqueue_style('image-manager-css', plugin_dir_url( __FILE__ ) . 'style.css' )
                     <div class="card-img-overlay">
                         <input type="checkbox" class="image-checkbox" value="${item.id}" ${checked}>
                     </div>
-                    <img src="${item.image_url}" alt="${item.title}" class="card-img-top">
+                    <img onclick="openDetail('${item.id}')" src="${item.image_url}" alt="${item.title}" class="card-img-top img-item">
                     <div class="card-body ${bgClass}">
                         <h6 class="card-title">${item.title}</h6>
                         <h5 class="card-text">${item.description}</h5>
@@ -373,6 +373,39 @@ wp_enqueue_style('image-manager-css', plugin_dir_url( __FILE__ ) . 'style.css' )
                 selectedImagesToHide = [];
                 //Rimuovo il pulsante per nascondere le immagini selezionate
                 jQuery('.image-manager-panel button#hide-selected-images').remove();
+            } else {
+                alert('Si è verificato un errore durante l\'operazione.');
+            }
+        }).fail(function() {
+            alert('Si è verificato un errore durante l\'operazione.');
+        })
+    }
+
+    function openDetail(imageId) {
+        jQuery.post("<?php echo admin_url('admin-ajax.php'); ?>", {
+            action: "get_image_detail",
+            nonce:"<?php echo wp_create_nonce('get_image_detail_nonce'); ?>",
+            image_id: imageId
+        }).done(function(response) {
+            if(response.success) {
+                //Preparo la modale
+                jQuery('.image-manager-modal').html(`
+                    <div class="modal-dialog modal-lg" role="document">
+                        <div class="modal-content p-4">
+                            <div class="modal-header">
+                                <h5 class="modal-title">Dettagli immagine</h5>
+                                <button type="button" class="close" data-dismiss="modal" aria-label="Close">
+                                    <span aria-hidden="true">&times;</span>
+                                </button>
+                            </div>
+                            <div class="modal-body">
+                                ${response.data.page}
+                            </div>
+                        </div>
+                    </div>
+                `)
+                //Mostro la modale
+                jQuery('.image-manager-modal').modal('show');
             } else {
                 alert('Si è verificato un errore durante l\'operazione.');
             }

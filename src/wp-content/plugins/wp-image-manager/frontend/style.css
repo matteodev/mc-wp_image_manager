@@ -66,3 +66,7 @@
     font-size: 10px;
     color: #999;
 }
+
+.image-manager-layout img.img-item {
+   cursor: pointer !important;
+}
