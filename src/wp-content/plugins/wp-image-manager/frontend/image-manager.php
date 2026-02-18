@@ -39,12 +39,15 @@ wp_enqueue_style('image-manager-css', plugin_dir_url( __FILE__ ) . 'style.css' )
 <div class="image-manager-layout"></div>
 <div class="image-manager-modal modal"></div>
 <script>
-    var im_grid;
+    var im_grid = [];
+    var im_grid_images = [];
+    var im_grid_hidden_images = [];
+    var selectedImagesToHide = [];
     var im_style = '<?php echo $style; ?>';
     var itemPerPage = 5;
     var currentPage = 1;
-    var selectedImagesToHide = [];
-
+    var currentView = 'visible';
+    
     jQuery(document).ready(function() {
         //Rimuovo il titolo del post creato automaticamente da WordPress
         jQuery('.wp-block-post-title').remove();
@@ -59,11 +62,16 @@ wp_enqueue_style('image-manager-css', plugin_dir_url( __FILE__ ) . 'style.css' )
             nonce: "<?php echo wp_create_nonce( 'get_images_data_nonce' ); ?>"
         }, function(response) {
             if(response.success) {
-                im_grid = response.data;
-                //Imposto la paginazione
-                setPagination(im_grid.data.length, itemPerPage);
-                //Mostro la prima pagina
-                changePage(currentPage, itemPerPage);
+                im_grid_images = response.data.images;
+                im_grid_hidden_images = response.data.hidden_images;
+
+                if(currentView === 'visible'){
+                    showGrid('visible');
+                }
+                else{
+                    showGrid('hidden');
+                }
+        
                 //Mostro il layout
                 jQuery('.image-manager-panel, .image-manager-layout').css('display', 'block');
                 //Nascondo lo spinner di caricamento
@@ -82,13 +90,39 @@ wp_enqueue_style('image-manager-css', plugin_dir_url( __FILE__ ) . 'style.css' )
             jQuery('.image-manager-panel #data-search').val('');
             jQuery('.image-manager-panel #image-sort').val(jQuery('.image-manager-panel #image-sort option:first').val());
         
-            //Se ci sono immagini nascoste mostro il bottone
-            if(im_grid.hidden_count > 0){
-                jQuery('#list-actions').append(
-                    `<button class="btn btn-secondary btn-sm mt-4" onclick="showHiddenImages()">Gestisci immagini nascoste</button>`
-                );
+        });
+    }
+
+    function showGrid(type){
+        im_grid = im_grid_images.filter(function(image) {
+            switch(type){
+                case 'hidden':
+                    return im_grid_hidden_images.includes(image.id);
+                case 'visible':
+                    return !im_grid_hidden_images.includes(image.id);
+                default:
+                    return !im_grid_hidden_images.includes(image.id);
             }
         });
+
+        //Imposto la paginazione
+        setPagination(im_grid.length, itemPerPage);
+        //Mostro la prima pagina
+        changePage(1, itemPerPage);
+
+        //Se ci sono immagini nascoste mostro il bottone
+        if(im_grid_hidden_images.length > 0 && type === 'visible'){
+            jQuery('.image-manager-panel #image-grid-btn').remove();
+            jQuery('#list-actions').append(
+                `<button id="image-grid-btn" class="btn btn-secondary btn-sm mt-4" onclick="showGrid('hidden')">Vedi immagini nascoste</button>`
+            );
+        }
+        if(type === 'hidden'){
+            jQuery('.image-manager-panel #image-grid-btn').remove();
+            jQuery('#list-actions').append(
+                `<button id="image-grid-btn" class="btn btn-secondary btn-sm mt-4" onclick="showGrid('visible')">Torna indietro</button>`
+            );
+        }
     }
 
     function setPagination(totalItems, itemsPerPage) {
@@ -108,7 +142,7 @@ wp_enqueue_style('image-manager-css', plugin_dir_url( __FILE__ ) . 'style.css' )
         currentPage = page;
         var startIndex = (page - 1) * itemsPerPage;
         var endIndex = startIndex + itemsPerPage;
-        var pageData = im_grid.data.slice(startIndex, endIndex);
+        var pageData = im_grid.slice(startIndex, endIndex);
         if(im_style === 'table') {
             renderTable(pageData);
         } 
@@ -128,7 +162,7 @@ wp_enqueue_style('image-manager-css', plugin_dir_url( __FILE__ ) . 'style.css' )
         var checked = "";
         var bgClass = "";
 
-        if(selectedImagesToHide.length == im_grid.data.length ) {
+        if(selectedImagesToHide.length == im_grid.length ) {
             checkAll = "checked";
         }
 
@@ -206,7 +240,7 @@ wp_enqueue_style('image-manager-css', plugin_dir_url( __FILE__ ) . 'style.css' )
         var bgClass = "";
         var cardHtml = '<div class="row">';
 
-        if(selectedImagesToHide.length == im_grid.data.length) {
+        if(selectedImagesToHide.length == im_grid.length) {
             checkAll = "checked";
         }
 
@@ -313,7 +347,7 @@ wp_enqueue_style('image-manager-css', plugin_dir_url( __FILE__ ) . 'style.css' )
         }, function(response) {
             if(response.success) {
                 //Rimuovo le immagini nascoste dalla griglia
-                im_grid.data = im_grid.data.filter(function(item) {
+                im_grid = im_grid.filter(function(item) {
                     return !selectedImagesToHide.includes(item.id);
                 });
                 //Svuoto la lista delle immagini selezionate per essere nascoste
@@ -321,7 +355,7 @@ wp_enqueue_style('image-manager-css', plugin_dir_url( __FILE__ ) . 'style.css' )
                 //Rimuovo il pulsante per nascondere le immagini selezionate
                 jQuery('.image-manager-panel button#hide-selected-images').remove();
                 //Reimposto la paginazione
-                setPagination(im_grid.data.length, itemPerPage);
+                setPagination(im_grid.length, itemPerPage);
                 //Aggiorno la griglia
                 changePage(currentPage, itemPerPage);
             } else {
@@ -333,7 +367,7 @@ wp_enqueue_style('image-manager-css', plugin_dir_url( __FILE__ ) . 'style.css' )
     function filterData() {
         var searchTerm = jQuery('#data-search').val().toLowerCase();
         // Filtra i dati in base al titolo
-        var filteredData = im_grid.data.filter(function(newData) {
+        var filteredData = im_grid.filter(function(newData) {
             return newData.title.toLowerCase().includes(searchTerm);
         });
         if(im_style === 'table') {
@@ -351,19 +385,19 @@ wp_enqueue_style('image-manager-css', plugin_dir_url( __FILE__ ) . 'style.css' )
     function orderData(value) {
         switch(value) {
             case 'created_at_desc':
-                im_grid.data.sort((a, b) => b.created_at_timestamp - a.created_at_timestamp);
+                im_grid.sort((a, b) => b.created_at_timestamp - a.created_at_timestamp);
             break;
             case 'created_at_asc':
-                im_grid.data.sort((a, b) => a.created_at_timestamp - b.created_at_timestamp);
+                im_grid.sort((a, b) => a.created_at_timestamp - b.created_at_timestamp);
             break;
             case 'title_asc':
-                im_grid.data.sort((a, b) => a.title.localeCompare(b.title));
+                im_grid.sort((a, b) => a.title.localeCompare(b.title));
             break;
             case 'title_desc':
-                im_grid.data.sort((a, b) => b.title.localeCompare(a.title));
+                im_grid.sort((a, b) => b.title.localeCompare(a.title));
             break;
             case 'random':
-                im_grid.data.sort(() => Math.random() - 0.5);
+                im_grid.sort(() => Math.random() - 0.5);
             break;
         }
         //Richiamo la pagina corrente per applicare l'ordinamento

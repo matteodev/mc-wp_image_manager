@@ -209,34 +209,35 @@ class Image_Manager {
 
         $images = $this->db->get_results( $query );
         $response = array();
-        if ( $images ) {
-            //Verifico se l'utente ha immagini nascoste
-            $query ="SELECT image_ids FROM $this->table_images_exclude WHERE owner_id = %s";
-            $hidden_images = $this->db->get_results( $this->db->prepare( $query, $session_id ) );
-            $hidden_images = json_decode($hidden_images[0]->image_ids, true);
 
+        //Estraggo immagini nascoste dell'utente
+        $query ="SELECT image_ids FROM $this->table_images_exclude WHERE owner_id = %s";
+        $hidden_images = $this->db->get_results( $this->db->prepare( $query, $session_id ) );
+        if($hidden_images){
+            $hidden_images = json_decode($hidden_images[0]->image_ids, true);
+        }else{
+            $hidden_images = array();
+        }
+
+        if ( $images ) {
             foreach($images as $key => $image){
-                if(in_array($image->id, $hidden_images)){
-                    unset($images[$key]);
-                    continue;
-                }
                 if($image->owner_id != "0"){
                     $upload_dir = wp_upload_dir();
                     $image->image_url =  $upload_dir['baseurl'] . '/' . $this->getRepo() . '/' . $image->image_url;
                 }
-                $response['data'][] = $image;
+                $response['images'][] = $image;
             }
-
 
             if(count($hidden_images) > 0){
-                $response['hidden_count'] = $hidden_images;
+                $response['hidden_images'] = $hidden_images;
             }else{
-                $response['hidden_count'] = 0;
+                $response['hidden_images'] = array();
             }
         }else{
-            $response['data'] = array();
-            $response['hidden_count'] = 0;
+            $response['images'] = array();
+            $response['hidden_images'] = array();
         }
+
         wp_send_json_success( $response );
     }
 
@@ -353,11 +354,14 @@ class Image_Manager {
 
         //Nascondo le immagini selezionate
         //Se l'utente ha già immagini nascoste, aggiorno la lista
-        $query ="SELECT id FROM $this->table_images_exclude WHERE owner_id = %s";
+        $query ="SELECT images_ids FROM $this->table_images_exclude WHERE owner_id = %s";
         $hidden_images = $this->db->get_results( $this->db->prepare( $query, $session_id ) );
         if($hidden_images){
+            $hidden_images = json_decode( $hidden_images[0]->images_ids, true );
+            $selectedImagesToHide = array_unique( array_merge( $hidden_images, $selectedImagesToHide ) );
+            
             $result = $this->db->update( $this->table_images_exclude, array(
-                'image_ids' => json_encode( $selectedImagesToHide ),
+                'images_ids' => json_encode( $selectedImagesToHide ),
             ), array(
                 'owner_id' => $session_id,
             ));
@@ -370,7 +374,7 @@ class Image_Manager {
         ));
         
         if($result === false){
-            wp_send_json_error( array( 'message' => 'Errore durante la nascosto delle immagini' ) );
+            wp_send_json_error( array( 'message' => 'Errore durante l\'aggiornamento delle immagini nascoste' ) );
         }
         //In caso di successo, invio la risposta
         wp_send_json_success( array( 'message' => 'Immagini nascoste con successo' ) );
