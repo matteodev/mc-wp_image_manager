@@ -65,7 +65,6 @@ if( isset($metadati["FILE"]["SectionsFound"]) ){
             $metadati["GPS"]["GPSLongitudeRef"]
         );
 
-        //Ricavo la posizione usando API di Google Maps
         $posizione = $latitudine_dec . ',' . $longitudine_dec;
         //Ricavo l'indirizzo usando API free usando CURL
         $ch = curl_init();
