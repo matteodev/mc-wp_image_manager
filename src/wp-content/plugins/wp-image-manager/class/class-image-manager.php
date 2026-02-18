@@ -372,22 +372,17 @@ class Image_Manager {
 
         //Recupero la lista di immagini nascoste
         $query ="SELECT image_ids FROM $this->table_images_exclude WHERE owner_id = %s";
-        $hidden_images = $this->db->get_results( $this->db->prepare( $query, $session_id ) );
-        if($hidden_images){
-            $hidden_images = json_decode( $hidden_images[0]->image_ids, true );
-            //Uso array_values per ricomporre l'array con indici consecutivi
-            $selectedImagesToHide = array_values( 
-                array_unique( 
-                    array_diff( $hidden_images, $selectedImagesToHide ) 
-                ) 
-            );
-
-            $result = $this->db->update( $this->table_images_exclude, array(
-                'image_ids' => json_encode( $selectedImagesToHide ),
-            ), array(
-                'owner_id' => $session_id,
-            ));
+        $rows = $this->db->get_results( $this->db->prepare( $query, $session_id ) );
+        
+        $hidden = [];
+        if ( $rows && !empty($rows[0]->image_ids) ) {
+            $decoded = json_decode($rows[0]->image_ids, true);
+            $hidden = is_array($decoded) ? $decoded : [];
         }
+
+        //Uso array_values per ricomporre l'array con indici consecutivi
+        $new_hidden = array_values(array_unique(array_diff($hidden, $selectedImagesToHide)));
+        $selectedImagesToHide = $new_hidden;
 
         //Aggiorno la lista di immagini nascoste
         $result = $this->db->update( $this->table_images_exclude, array(
