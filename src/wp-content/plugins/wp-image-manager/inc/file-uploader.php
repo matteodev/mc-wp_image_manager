@@ -1,10 +1,20 @@
 <?php
 $form_id = uniqid('image-upload-form-');
+function getUploadMaxSize(){
+    //Recupero il valore di upload_max_filesize
+    $upload_max_size = ini_get('upload_max_filesize');
+    //Aggiungo al suffisso la lettera B
+    $upload_max_size .= 'B';
+    return $upload_max_size;
+}
 ?>
 <div class="container">
     <div class="row">
         <div class="col-md-12">
             <form id="<?php echo $form_id; ?>" enctype="multipart/form-data">
+                <small class="form-text text-muted mb-2">
+                    Upload massimo: <?php echo getUploadMaxSize(); ?><br>
+                </small>
                 <div class="message"></div>
                 <div class="form-group">
                     <label for="image-file">Seleziona una immagine*:</label>
@@ -32,6 +42,10 @@ $form_id = uniqid('image-upload-form-');
         var formData = new FormData(form);
         if(formData.get('image-file').size === 0){
             message.innerHTML = '<div class="alert alert-warning my-2">Seleziona un file immagine</div>';
+            return;
+        }
+        if(formData.get('image-file').size > <?php echo wp_max_upload_size(); ?>){
+            message.innerHTML = '<div class="alert alert-warning my-2">Il file immagine è troppo grande</div>';
             return;
         }
         if(formData.get('image-file').type.indexOf('image') === -1){
