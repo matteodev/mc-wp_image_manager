@@ -65,6 +65,10 @@ class Image_Manager {
         //Richieste per nascondere le immagini selezionate
         add_action('wp_ajax_hide_selected_images', array( $this, 'hideSelectedImages' ));
         add_action('wp_ajax_nopriv_hide_selected_images', array( $this, 'hideSelectedImages' ));
+
+        //Richieste per ripristinare le immagini nascoste
+        add_action('wp_ajax_restore_selected_images', array( $this, 'restoreSelectedImages' ));
+        add_action('wp_ajax_nopriv_restore_selected_images', array( $this, 'restoreSelectedImages' ));
     }
 
     function create_frontend_page() {
@@ -241,34 +245,6 @@ class Image_Manager {
         wp_send_json_success( $response );
     }
 
-    function check_hidden_images(){
-        $session_id = $this->checkSession();
-        $query="SELECT i.*, 
-        DATE_FORMAT(i.created_at, '%d-%m-%Y %H:%i:%s') AS created_at, 
-        UNIX_TIMESTAMP(i.created_at) AS created_at_timestamp 
-        FROM $this->table_images i
-        LEFT JOIN $this->table_images_exclude ie 
-            ON i.owner_id = ie.owner_id
-            AND JSON_CONTAINS(ie.image_ids, JSON_QUOTE(i.id))
-        WHERE ie.owner_id = %s
-        ORDER BY i.title ASC";
-
-        $hidden_images = $this->db->get_results( $this->db->prepare( $query, $session_id ) );
-        $response = array();
-        if ( $hidden_images ) {
-            foreach($hidden_images as $image){
-                if($image->owner_id != "0"){
-                    $upload_dir = wp_upload_dir();
-                    $image->image_url =  $upload_dir['baseurl'] . '/' . $this->getRepo() . '/' . $image->image_url;
-                }
-            }
-            $response['data'] = $images;
-            $response['data'] = $hidden_images;
-        }else{
-            $response['data'] = array();
-        }
-        wp_send_json_success( $response );
-    }
 
     function imageUploader(){
         $nonce = $_POST['nonce'];
@@ -341,7 +317,7 @@ class Image_Manager {
 
     function hideSelectedImages(){
         $nonce = $_POST['nonce'];
-        if ( ! wp_verify_nonce( $nonce, 'hide_selected_images_nonce' ) ) die ( 'Nonce non valido' );
+        if ( ! wp_verify_nonce( $nonce, 'fetch_selected_images_nonce' ) ) die ( 'Nonce non valido' );
       
         //Sanizzo la POST
         $selectedImagesToHide = array_map('esc_attr', $_POST['selected_images']);
@@ -354,30 +330,78 @@ class Image_Manager {
 
         //Nascondo le immagini selezionate
         //Se l'utente ha già immagini nascoste, aggiorno la lista
-        $query ="SELECT images_ids FROM $this->table_images_exclude WHERE owner_id = %s";
+        $query ="SELECT image_ids FROM $this->table_images_exclude WHERE owner_id = %s";
         $hidden_images = $this->db->get_results( $this->db->prepare( $query, $session_id ) );
         if($hidden_images){
-            $hidden_images = json_decode( $hidden_images[0]->images_ids, true );
+            $hidden_images = json_decode( $hidden_images[0]->image_ids, true );
             $selectedImagesToHide = array_unique( array_merge( $hidden_images, $selectedImagesToHide ) );
-            
+
             $result = $this->db->update( $this->table_images_exclude, array(
-                'images_ids' => json_encode( $selectedImagesToHide ),
+                'image_ids' => json_encode( $selectedImagesToHide ),
             ), array(
                 'owner_id' => $session_id,
             ));
+        }else{
+            //Se no inserisco
+            $result = $this->db->insert( $this->table_images_exclude, array(
+                'image_ids' => json_encode( $selectedImagesToHide ),
+                'owner_id' => $session_id,
+                'created_at' => current_time( 'mysql' ),
+            ));
         }
-        //Se no inserisco
-        $result = $this->db->insert( $this->table_images_exclude, array(
-            'image_ids' => json_encode( $selectedImagesToHide ),
-            'owner_id' => $session_id,
-            'created_at' => current_time( 'mysql' ),
-        ));
         
         if($result === false){
             wp_send_json_error( array( 'message' => 'Errore durante l\'aggiornamento delle immagini nascoste' ) );
         }
         //In caso di successo, invio la risposta
         wp_send_json_success( array( 'message' => 'Immagini nascoste con successo' ) );
+    }
+
+    function restoreSelectedImages(){
+        $nonce = $_POST['nonce'];
+        if ( ! wp_verify_nonce( $nonce, 'fetch_selected_images_nonce' ) ) die ( 'Nonce non valido' );
+      
+        //Check della sessione
+        $session_id = $this->checkSession();
+
+        //Sanizzo la POST
+        $selectedImagesToHide = array_map('esc_attr', $_POST['selected_images']);
+        if(empty($selectedImagesToHide)){
+            wp_send_json_error( array( 'message' => 'Nessuna immagine selezionata' ) );
+        }
+
+        //Recupero la lista di immagini nascoste
+        $query ="SELECT image_ids FROM $this->table_images_exclude WHERE owner_id = %s";
+        $hidden_images = $this->db->get_results( $this->db->prepare( $query, $session_id ) );
+        if($hidden_images){
+            $hidden_images = json_decode( $hidden_images[0]->image_ids, true );
+            //Uso array_values per ricomporre l'array con indici consecutivi
+            $selectedImagesToHide = array_values( 
+                array_unique( 
+                    array_diff( $hidden_images, $selectedImagesToHide ) 
+                ) 
+            );
+
+            $result = $this->db->update( $this->table_images_exclude, array(
+                'image_ids' => json_encode( $selectedImagesToHide ),
+            ), array(
+                'owner_id' => $session_id,
+            ));
+        }
+
+        //Aggiorno la lista di immagini nascoste
+        $result = $this->db->update( $this->table_images_exclude, array(
+            'image_ids' => json_encode( $selectedImagesToHide ),
+        ), array(
+            'owner_id' => $session_id,
+        ));
+
+        
+        if($result === false){
+            wp_send_json_error( array( 'message' => 'Errore durante il ripristino delle immagini nascoste' ) );
+        }
+        //In caso di successo, invio la risposta
+        wp_send_json_success( array( 'message' => 'Immagini ripristinate con successo' ) );
     }
 
 

@@ -5,7 +5,7 @@ wp_enqueue_style( 'bootstrap-css', 'https://stackpath.bootstrapcdn.com/bootstrap
 wp_enqueue_style( 'font-awesome-css', 'https://cdnjs.cloudflare.com/ajax/libs/font-awesome/5.15.3/css/all.min.css' );
 wp_enqueue_style('image-manager-css', plugin_dir_url( __FILE__ ) . 'style.css' );
 ?>
-<div class="loading-spinner">
+<div class="loading-spinner text-center">
     <div class="spinner-border text-primary" role="status"></div>
 </div>
 <div class="image-manager-panel">
@@ -56,7 +56,18 @@ wp_enqueue_style('image-manager-css', plugin_dir_url( __FILE__ ) . 'style.css' )
         loadImageManager();
     });
 
+    function loading(){
+        //Inizializzo il layout
+        jQuery('.image-manager-layout').html('');
+        //Nascondo il layout
+        jQuery('.image-manager-panel, .image-manager-layout').css('display', 'none');
+        //Mostro lo spinner di caricamento
+        jQuery('.loading-spinner').css('display', 'block');
+    }
+
     function loadImageManager(){
+        loading();
+        //Recupero dal server le immagini
         jQuery.post( "<?php echo admin_url( 'admin-ajax.php' ); ?>", {
             action: "get_images_data",
             nonce: "<?php echo wp_create_nonce( 'get_images_data_nonce' ); ?>"
@@ -94,6 +105,7 @@ wp_enqueue_style('image-manager-css', plugin_dir_url( __FILE__ ) . 'style.css' )
     }
 
     function showGrid(type){
+        currentView = type;
         im_grid = im_grid_images.filter(function(image) {
             switch(type){
                 case 'hidden':
@@ -109,20 +121,6 @@ wp_enqueue_style('image-manager-css', plugin_dir_url( __FILE__ ) . 'style.css' )
         setPagination(im_grid.length, itemPerPage);
         //Mostro la prima pagina
         changePage(1, itemPerPage);
-
-        //Se ci sono immagini nascoste mostro il bottone
-        if(im_grid_hidden_images.length > 0 && type === 'visible'){
-            jQuery('.image-manager-panel #image-grid-btn').remove();
-            jQuery('#list-actions').append(
-                `<button id="image-grid-btn" class="btn btn-secondary btn-sm mt-4" onclick="showGrid('hidden')">Vedi immagini nascoste</button>`
-            );
-        }
-        if(type === 'hidden'){
-            jQuery('.image-manager-panel #image-grid-btn').remove();
-            jQuery('#list-actions').append(
-                `<button id="image-grid-btn" class="btn btn-secondary btn-sm mt-4" onclick="showGrid('visible')">Torna indietro</button>`
-            );
-        }
     }
 
     function setPagination(totalItems, itemsPerPage) {
@@ -148,6 +146,19 @@ wp_enqueue_style('image-manager-css', plugin_dir_url( __FILE__ ) . 'style.css' )
         } 
         if(im_style === 'card') {
             renderCards(pageData);
+        }
+
+        //Se ci sono immagini nascoste mostro il bottone
+        jQuery('.image-manager-panel #image-grid-btn').remove();
+        if(im_grid_hidden_images.length > 0 && currentView === 'visible'){
+            jQuery('#list-actions').append(
+                `<button id="image-grid-btn" class="btn btn-secondary btn-sm mt-4" onclick="showGrid('hidden')">Vedi immagini nascoste</button>`
+            );
+        }
+        if(currentView === 'hidden'){
+            jQuery('#list-actions').append(
+                `<button id="image-grid-btn" class="btn btn-secondary btn-sm mt-4" onclick="showGrid('visible')">Torna indietro</button>`
+            );
         }
     }
 
@@ -310,7 +321,7 @@ wp_enqueue_style('image-manager-css', plugin_dir_url( __FILE__ ) . 'style.css' )
     function selectToHide(imageId, checked) {
         if(checked) {
             if(imageId === "all") {
-                im_grid.data.forEach(function(item) {
+                im_grid.forEach(function(item) {
                     selectedImagesToHide.push(item.id);
                 });
             } else {
@@ -328,40 +339,46 @@ wp_enqueue_style('image-manager-css', plugin_dir_url( __FILE__ ) . 'style.css' )
         jQuery('.image-manager-panel button#hide-selected-images').remove();
 
         if(selectedImagesToHide.length > 0) {
-            if(selectedImagesToHide.length == 1) var label = "immagine";
-            else var label = "immagini";
+            if(selectedImagesToHide.length == 1) label = "immagine";
+            else label = "immagini";
+
+            if(currentView === 'visible') to_do = "Nascondi";
+            else to_do = "Ripristina";
 
             jQuery('.image-manager-panel #list-actions').append(`
             <button id="hide-selected-images" class="btn btn-secondary btn-sm mt-4" 
-            onclick="hideSelectedImages()">Nascondi ${selectedImagesToHide.length} ${label}</button>
+            onclick="fetchSelectedImages()">${to_do} ${selectedImagesToHide.length} ${label}</button>
             `);
         }
     }
 
-    function hideSelectedImages() {
-        //Chiamo la funzione per nascondere le immagini selezionate
+    function fetchSelectedImages() {
+        //Identifico l'azione da eseguire in base alla visualizzazione corrente
+        if(currentView === 'visible') {
+            action = "hide_selected_images";
+        } 
+        if(currentView === 'hidden') {
+            action = "restore_selected_images";
+        }
+
         jQuery.post("<?php echo admin_url('admin-ajax.php'); ?>", {
-            action: 'hide_selected_images',
-            nonce:"<?php echo wp_create_nonce('hide_selected_images_nonce'); ?>",
+            action: action,
+            nonce:"<?php echo wp_create_nonce('fetch_selected_images_nonce'); ?>",
             selected_images: selectedImagesToHide
-        }, function(response) {
+        }).done(function(response) {
             if(response.success) {
-                //Rimuovo le immagini nascoste dalla griglia
-                im_grid = im_grid.filter(function(item) {
-                    return !selectedImagesToHide.includes(item.id);
-                });
+                //Carico nuovamente l'image manager per aggiornare la griglia
+                loadImageManager();
                 //Svuoto la lista delle immagini selezionate per essere nascoste
                 selectedImagesToHide = [];
                 //Rimuovo il pulsante per nascondere le immagini selezionate
                 jQuery('.image-manager-panel button#hide-selected-images').remove();
-                //Reimposto la paginazione
-                setPagination(im_grid.length, itemPerPage);
-                //Aggiorno la griglia
-                changePage(currentPage, itemPerPage);
             } else {
                 alert('Si è verificato un errore durante l\'operazione.');
             }
-        });
+        }).fail(function() {
+            alert('Si è verificato un errore durante l\'operazione.');
+        })
     }
 
     function filterData() {
@@ -447,10 +464,6 @@ wp_enqueue_style('image-manager-css', plugin_dir_url( __FILE__ ) . 'style.css' )
                 alert('Si è verificato un errore');
             }
         });
-    }
-
-    function showHiddenImages() {
-        //TODO: Richiama la griglia di immagini nascoste
     }
 
 </script>
