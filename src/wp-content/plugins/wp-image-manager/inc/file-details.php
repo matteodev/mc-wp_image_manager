@@ -75,6 +75,59 @@ if( isset($metadati["FILE"]["SectionsFound"]) ){
         curl_close($ch);
         $indirizzo = json_decode($output,true);
         $indirizzo = $indirizzo['display_name'];
+
+        $meteo = "";
+
+        if($dataScatto != null){
+            //Ricavo il meteo del giorno dello scatto usando API free
+            $ch = curl_init();
+            curl_setopt($ch, CURLOPT_URL, 'https://api.open-meteo.com/v1/forecast?latitude=' . $latitudine_dec . '&longitude=' . $longitudine_dec . '&current_weather=true');
+            curl_setopt($ch, CURLOPT_RETURNTRANSFER, 1);
+            curl_setopt($ch, CURLOPT_USERAGENT, 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36');
+            $output = curl_exec($ch);
+            curl_close($ch);
+            $meteo = json_decode($output,true);
+            $meteo = $meteo['current_weather'];
+            $temperatura = $meteo['temperature'];
+            $meteo_code = $meteo['weathercode'];
+            //Converto il codice meteo in testo in italiano
+            switch( $meteo_code ){
+                case 0:
+                    $meteo = ' Soleggiato';
+                    break;
+                case 1:
+                    $meteo = ' Soleggiato con nuvole sparse';
+                    break;
+                case 2:
+                    $meteo = ' Nuvoloso';
+                    break;
+                case 3:
+                    $meteo = ' Nuvoloso con nuvole sparse';
+                    break;
+                case 45:
+                case 48:
+                    $meteo = ' Nuvoloso con nebbia';
+                    break;
+                case 51:
+                case 53:
+                case 55:
+                    $meteo = ' Nuvoloso con pioggia leggera';
+                    break;
+                case 56:
+                case 57:
+                    $meteo = ' Nuvoloso con pioggia intensa';
+                    break;
+                case 61:
+                case 63:
+                case 65:
+                    $meteo = ' Nuvoloso con pioggia';
+                    break;
+                default:
+                    $meteo = '';
+                    break;
+
+            }
+        }
        
     }
 }
@@ -140,6 +193,17 @@ if( isset($metadati["FILE"]["SectionsFound"]) ){
                     title="Posizione"></i>
                 </strong> 
                 <?php echo $indirizzo; ?>
+            </p>
+            <?php } ?>
+            <?php if( $meteo != '' ){ ?>
+            <p class="my-1">
+                <strong>
+                    <i class="fas fa-thermometer-three-quarters" 
+                    data-toggle="tooltip" 
+                    data-placement="top" 
+                    title="Meteo"></i>
+                </strong> 
+                <?php echo $meteo . ' (' . $temperatura . '°C)'; ?>
             </p>
             <?php } ?>
             <?php if( $peso_file != ''){ ?>
