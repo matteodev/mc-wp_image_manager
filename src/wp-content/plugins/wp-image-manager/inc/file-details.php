@@ -3,10 +3,30 @@ if( $image->owner_id != 0 ){
     $upload_dir = wp_upload_dir(); 
     $image->image_url =  $upload_dir['baseurl'] . '/' . $this->getRepo() . '/' . $image->image_url;
 }
-$metadati = json_decode($image->metadati);
-$data_scatto = isset($metadati->FILE->FileDateTime)? $metadati->FILE->FileDateTime:'';
-$peso_file = isset($metadati->FILE->FileSize)? $metadati->FILE->FileSize:'';
-$risoluzione_file = isset($metadati->COMPUTED->Width)? $metadati->COMPUTED->Width . 'x' . $metadati->COMPUTED->Height:'';
+$metadati = json_decode($image->metadati,true);
+//Verifico le sectionsFound
+if( isset($metadati["FILE"]["SectionsFound"]) ){
+    $sections = explode(',',$metadati["FILE"]["SectionsFound"]);
+    foreach( $sections as $key => $section ){
+        if( trim($section) == 'EXIF' ){
+            $dataScatto_raw = $metadati["EXIF"]["DateTimeOriginal"];
+        }
+        if( trim($section) == 'IFD0' ){
+            $marca = $metadati["IFD0"]["Make"];
+            $modello = $metadati["IFD0"]["Model"];
+        }
+        if( trim($section) == 'GPS' ){
+            $latitudine = $metadati["GPS"]["Latitude"];
+            $longitudine = $metadati["GPS"]["Longitude"];
+        }
+    }
+    
+    //Converto la data scatto in formato d/m/Y H:i:s
+    if ( $dataScatto_raw != '' && $dataScatto_raw != 0 ) {
+        $dt = DateTime::createFromFormat('Y:m:d H:i:s', $dataScatto_raw);
+        $dataScatto = $dt ? $dt->format('d/m/Y H:i:s') : null;
+    }
+}
 ?>
 <div class="container">
     <div class="row">
@@ -38,7 +58,7 @@ $risoluzione_file = isset($metadati->COMPUTED->Width)? $metadati->COMPUTED->Widt
                 </strong> 
                 <?php echo date('d/m/Y H:i:s', strtotime($image->created_at)); ?>
             </p>
-            <?php if( $data_scatto != '' && $data_scatto != 0 ){ ?>
+            <?php if( $dataScatto != '' && $dataScatto != 0 ){ ?>
             <p class="my-1">
                 <strong>
                     <i class="fas fa-camera" 
@@ -46,7 +66,18 @@ $risoluzione_file = isset($metadati->COMPUTED->Width)? $metadati->COMPUTED->Widt
                     data-placement="top" 
                     title="Data scatto"></i>
                 </strong> 
-                <?php echo date('d/m/Y H:i:s', $data_scatto); ?>
+                <?php echo $dataScatto; ?>
+            </p>
+            <?php } ?>
+            <?php if($marca != '' && $modello != ''){ ?>
+            <p class="my-1">
+                <strong>
+                    <i class="fas fa-mobile" 
+                    data-toggle="tooltip" 
+                    data-placement="top" 
+                    title="Marca e modello"></i>
+                </strong> 
+                <?php echo $marca . ' ' . $modello; ?>
             </p>
             <?php } ?>
             <?php if( $peso_file != ''){ ?>
