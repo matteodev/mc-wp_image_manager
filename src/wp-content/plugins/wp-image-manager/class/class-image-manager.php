@@ -47,6 +47,8 @@ class Image_Manager {
         $this->set_ajax_actions();
         //Creo una pagina nel frontend e gli assegno lo shortcode
         add_action( 'init', array( $this, 'create_frontend_page' ) );
+        //Configuro menu backend
+        add_action( 'admin_menu', array( $this, 'prepare_backend' ) );
     }
 
     function set_ajax_actions(){
@@ -158,6 +160,23 @@ class Image_Manager {
         if ( ! is_dir( $image_dir ) ) {
             mkdir( $image_dir, 0755, true );
         }
+    }
+
+    function prepare_backend(){
+        //Aggiungo submenu nel menu tool
+        add_submenu_page(
+            'tools.php',
+            'Image Manager',
+            'Image Manager',
+            'manage_options',
+            'image-manager',
+            array( $this, 'backend_settings_page' ),
+            20
+        );
+    }
+
+    function backend_settings_page(){
+        include_once (plugin_dir_path( __FILE__ ) . '../backend/settings.php');
     }
 
     function preset_images($limit = 10){
