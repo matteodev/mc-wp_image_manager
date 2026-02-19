@@ -15,16 +15,13 @@
     <li>Creazione di una pagina Image Manager e conversione homepage</li>
     <li>Implementazione dello shortcode</li>
     <li>Implementazione FrontEnd</li>
-</ul>
-
-
-
-<h2>TODO</h2>
-<ul>
     <li>Caricamento immagini in repository</li>
     <li>Esclusione di immagini per utente</li>
     <li>Backend pagina Settings per gestire le opzioni</li>
+    <li>Rilevamento posizione e Meteo dalla data dello scatto (se disponibile)</li>
+    <li>Controllo errori CURL</li>
 </ul>
+<h1><b>DONE!</b></h1>
 
 <h2>NOTE</h2>
 <p>Non avendo nel server locale la possibilità di inviare mail, per gestire l'accesso degli utenti, ho deciso di implementare una sessione basata su cookie:</p>
