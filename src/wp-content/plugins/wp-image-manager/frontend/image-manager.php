@@ -56,17 +56,30 @@ wp_enqueue_style('image-manager-css', plugin_dir_url( __FILE__ ) . 'style.css' )
         loadImageManager();
     });
 
-    function loading(){
-        //Inizializzo il layout
-        jQuery('.image-manager-layout').html('');
-        //Nascondo il layout
-        jQuery('.image-manager-panel, .image-manager-layout').css('display', 'none');
-        //Mostro lo spinner di caricamento
-        jQuery('.loading-spinner').css('display', 'block');
+    jQuery(document).ajaxStart(function() {
+        loading('hide');
+    });
+
+    jQuery(document).ajaxStop(function() {
+        loading('show');
+    });
+
+    function loading(status){
+        if(status === 'hide'){
+            //Nascondo il layout
+            jQuery('.image-manager-panel, .image-manager-layout').css('display', 'none');
+            //Mostro lo spinner di caricamento
+            jQuery('.loading-spinner').css('display', 'block');
+        }
+        if(status === 'show'){
+            //Nascondo lo spinner di caricamento
+            jQuery('.loading-spinner').css('display', 'none');
+            //Mostro il layout
+            jQuery('.image-manager-panel, .image-manager-layout').css('display', 'block');
+        }
     }
 
     function loadImageManager(){
-        loading();
         //Recupero dal server le immagini
         jQuery.post( "<?php echo admin_url( 'admin-ajax.php' ); ?>", {
             action: "get_images_data",
@@ -82,11 +95,6 @@ wp_enqueue_style('image-manager-css', plugin_dir_url( __FILE__ ) . 'style.css' )
                 else{
                     showGrid('hidden');
                 }
-        
-                //Mostro il layout
-                jQuery('.image-manager-panel, .image-manager-layout').css('display', 'block');
-                //Nascondo lo spinner di caricamento
-                jQuery('.loading-spinner').css('display', 'none');
             } else {
                 jQuery('.image-manager-layout').html(
                     `<div class="alert alert-danger" role="alert">Errore durante il recupero dei dati</div>`
@@ -398,7 +406,7 @@ wp_enqueue_style('image-manager-css', plugin_dir_url( __FILE__ ) . 'style.css' )
                                     <span aria-hidden="true">&times;</span>
                                 </button>
                             </div>
-                            <div class="modal-body">
+                            <div class="modal-body px-0">
                                 ${response.data.page}
                             </div>
                         </div>

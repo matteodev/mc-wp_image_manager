@@ -426,8 +426,227 @@ class Image_Manager {
         $render = ob_get_clean();
         wp_send_json_success( array( 'page' => $render ) );
     }
-        
 
+    function gpsToDecimal($deg, $min, $sec, $ref) {
+        // Formula: gradi + minuti/60 + secondi/3600
+        $decimal = $deg + ($min / 60) + ($sec / 3600);
+        
+        // Sud e Ovest devono essere negativi
+        if ($ref == 'S' || $ref == 'W') {
+            $decimal = $decimal * -1;
+        }
+        
+        return round($decimal, 6); // Ritorna 6 decimali per alta precisione
+    }
+
+    function convertExifCoord($coordPart, $ref) {
+        if (is_string($coordPart)) {
+            $parts = explode('/', $coordPart);
+            if (count($parts) == 2) {
+                return $parts[0] / $parts[1];
+            }
+        }
+        return $coordPart;
+    }
+
+    function metadatiAnalyser($metadati){
+        $result = array(
+            'data_scatto' => '',
+            'marca' => '',
+            'modello' => '',
+            'indirizzo' => '',
+            'meteo' => '',
+            'meteo_today' => '',
+            'peso_file' => '',
+            'risoluzione' => '',
+        );
+
+        if( isset($metadati["FILE"]["FileSize"]) ){
+            //Converto in MB da Byte
+            $result['peso_file'] = number_format($metadati["FILE"]["FileSize"] / 1024 / 1024, 2) . ' MB';
+        }
+        if( isset($metadati["COMPUTED"]["Width"]) || isset($metadati["COMPUTED"]["Height"]) ){
+            $result ['risoluzione'] = $metadati["COMPUTED"]["Width"] . 'x' . $metadati["COMPUTED"]["Height"];
+        }
+
+        //Verifico le sectionsFound
+        if( isset($metadati["FILE"]["SectionsFound"]) ){
+            $sections = explode(',',$metadati["FILE"]["SectionsFound"]);
+            foreach( $sections as $key => $section ){
+                if( trim($section) == 'EXIF' ){
+                    $dataScatto_raw = $metadati["EXIF"]["DateTimeOriginal"];
+                }
+                if( trim($section) == 'IFD0' ){
+                    $marca = $metadati["IFD0"]["Make"];
+                    $modello = $metadati["IFD0"]["Model"];
+                }
+                if( trim($section) == 'GPS' ){
+                    $latitudine = $metadati["GPS"]["GPSLatitude"];
+                    $longitudine = $metadati["GPS"]["GPSLongitude"];
+                }
+            }
+            
+            //Converto la data scatto in formato d/m/Y H:i:s
+            if ( $dataScatto_raw != '' && $dataScatto_raw != 0 ) {
+                $dt = DateTime::createFromFormat('Y:m:d H:i:s', $dataScatto_raw);
+                $result['data_scatto'] = $dt ? $dt->format('d/m/Y H:i:s') : "";
+                //Formato che richiede API Meteo
+                $dataScattoMeteo = $dt ? $dt->format('Y-m-d') : "";
+                $dataScattoMeteoOra = $dt ? $dt->format('Y-m-d\TH:i') : "";
+            }
+
+            //Converto la latitudine e longitudine in formato decimale
+            if( $latitudine != '' && $longitudine != '' ){
+                $latitudine_dec = $this->gpsToDecimal(
+                    $this->convertExifCoord($latitudine[0], $metadati["GPS"]["GPSLatitudeRef"]),
+                    $this->convertExifCoord($latitudine[1], $metadati["GPS"]["GPSLatitudeRef"]),
+                    $this->convertExifCoord($latitudine[2], $metadati["GPS"]["GPSLatitudeRef"]),
+                    $metadati["GPS"]["GPSLatitudeRef"]
+                );
+                $longitudine_dec = $this->gpsToDecimal(
+                    $this->convertExifCoord($longitudine[0], $metadati["GPS"]["GPSLongitudeRef"]),
+                    $this->convertExifCoord($longitudine[1], $metadati["GPS"]["GPSLongitudeRef"]),
+                    $this->convertExifCoord($longitudine[2], $metadati["GPS"]["GPSLongitudeRef"]),
+                    $metadati["GPS"]["GPSLongitudeRef"]
+                );
+
+                $result['indirizzo'] = $this->getAddressFromPosition( array(
+                    'latitudine_dec' => $latitudine_dec,
+                    'longitudine_dec' => $longitudine_dec,
+                ));
+
+
+                if($result['data_scatto'] != ""){
+                    $result["meteo"] = $this->getMeteoFromPosition( array(
+                        'latitudine_dec' => $latitudine_dec,
+                        'longitudine_dec' => $longitudine_dec,
+                        'date' => $dataScattoMeteo,
+                        'date_hour' => $dataScattoMeteoOra,
+                    ));
+                }
+                //Aggiungo meteo di oggi
+                $result["meteo_today"] = $this->getMeteoFromPosition( array(
+                    'latitudine_dec' => $latitudine_dec,
+                    'longitudine_dec' => $longitudine_dec
+                ));
+            
+            }
+        }
+
+        return $result;
+    }
+
+    function getAddressFromPosition( $params = array() ){
+        if(!isset($params['latitudine_dec']) || !isset($params['longitudine_dec'])){
+            return '';
+        }
+        $latitudine_dec = $params['latitudine_dec'];
+        $longitudine_dec = $params['longitudine_dec'];
+
+        //Ricavo l'indirizzo usando API free usando CURL
+        $url = 'https://nominatim.openstreetmap.org/reverse?format=json';
+        $url .= '&lat=' . $latitudine_dec . '&lon=' . $longitudine_dec;
+        
+        $ch = curl_init();
+        curl_setopt($ch, CURLOPT_URL, $url);
+        curl_setopt($ch, CURLOPT_RETURNTRANSFER, 1);
+        curl_setopt($ch, CURLOPT_USERAGENT, 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36');
+        $output = curl_exec($ch);
+        curl_close($ch);
+        $indirizzo = json_decode($output,true);
+        if( isset($indirizzo['display_name']) ){
+            return $indirizzo['display_name'];
+        }
+        return '';   
+    }
+
+    function getMeteoFromPosition( $params ){
+        if(!isset($params['latitudine_dec']) || !isset($params['longitudine_dec'])){
+            return '';
+        }
+        $latitudine_dec = $params['latitudine_dec'];
+        $longitudine_dec = $params['longitudine_dec'];
+
+        if(isset($params['date'])){ 
+            $url = 'https://historical-forecast-api.open-meteo.com/v1/forecast?';
+            $url .= "start_date=" . $params['date'] . "&end_date=" . $params['date'];
+            $url .= "&start_hour=" . $params['date_hour'] . "&end_hour=" . $params['date_hour'];
+        }else{
+            $url = 'https://api.open-meteo.com/v1/forecast?';
+            $url .= 'current_weather=true';
+        }
+        $url .= '&latitude=' . $latitudine_dec;
+        $url .= '&longitude=' . $longitudine_dec;
+        $url .= '&timezone=auto';
+        $url .= '&daily=weathercode,temperature_2m_max,temperature_2m_min';
+
+        $url = trim($url);
+        
+        
+        //Ricavo il meteo del giorno dello scatto usando API free
+        $ch = curl_init();
+        curl_setopt($ch, CURLOPT_URL, $url);
+        curl_setopt($ch, CURLOPT_RETURNTRANSFER, 1);
+        curl_setopt($ch, CURLOPT_USERAGENT, 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36');
+        $output = curl_exec($ch);
+        curl_close($ch);
+        $meteo = json_decode($output,true);
+        if(isset($params['date'])){
+            $unit = $meteo["daily_units"]["temperature_2m_max"];
+            $temperatura_max = $meteo['daily']['temperature_2m_max'][0];
+            $temperatura_min = $meteo['daily']['temperature_2m_min'][0];
+            $temperatura = number_format(($temperatura_max + $temperatura_min) / 2, 1);
+            $meteo_code = $meteo['daily']['weathercode'][0];
+        }else{
+            $unit = $meteo["current_weather_units"]["temperature"];
+            $temperatura = $meteo['current_weather']['temperature'];
+            $meteo_code = $meteo['current_weather']['weathercode'];
+        }
+   
+        //Converto il codice meteo in testo in italiano
+        switch( $meteo_code ){
+            case 0:
+                $meteo = ' Soleggiato';
+            break;
+            case 1:
+                $meteo = ' Soleggiato con nuvole sparse';
+            break;
+            case 2:
+                $meteo = ' Nuvoloso';
+            break;
+            case 3:
+                $meteo = ' Nuvoloso con nuvole sparse';
+            break;
+            case 45:
+            case 48:
+                $meteo = ' Nuvoloso con nebbia';
+            break;
+            case 51:
+            case 53:
+            case 55:
+                $meteo = ' Nuvoloso con pioggia leggera';
+            break;
+            case 56:
+            case 57:
+                $meteo = ' Nuvoloso con pioggia intensa';
+            break;
+            case 61:
+            case 63:
+            case 65:
+                $meteo = ' Nuvoloso con pioggia';
+            break;
+            default:
+                $meteo = '';
+            break;
+
+        }
+        if( $meteo != '' ){
+            return $meteo . ' (' . $temperatura . $unit . ')';
+        }else {
+            return '';
+        }
+    }
+    
 
     public function desactivate() {
         //Se la devmode è disattivata, non eseguo nessuna operazione di pulizia, per evitare di perdere dati in fase di sviluppo
