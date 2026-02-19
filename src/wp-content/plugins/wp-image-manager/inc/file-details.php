@@ -1,13 +1,20 @@
 <?php 
-$metadati = "";
+$info = array();
 if( $image->owner_id != 0 ){
     $upload_dir = wp_upload_dir(); 
     $image->image_url =  $upload_dir['baseurl'] . '/' . $this->getRepo() . '/' . $image->image_url;
 }
 if( $image->metadati != '' ){
     $metadati = json_decode($image->metadati,true);
+    $info = $this->metadatiAnalyser($metadati);
+    //Gestione degli errori
+    if( isset($info['error']) && count($info['error']) > 0 ){
+        //Stampo gli errori in console.error
+        foreach($info['error'] as $error){
+            echo '<script>console.error("ImageManagerPlugin:' . $error . '");</script>';
+        }
+    }
 }
-$info = $this->metadatiAnalyser($metadati);
 ?>
 <div class="container-fluid" style="max-height: 80vh; overflow-y: auto;">
     <div class="row">

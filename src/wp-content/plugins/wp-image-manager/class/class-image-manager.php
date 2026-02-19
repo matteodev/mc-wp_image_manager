@@ -478,6 +478,7 @@ class Image_Manager {
             'meteo_today' => '',
             'peso_file' => '',
             'risoluzione' => '',
+            'error' => array(),
         );
 
         if( isset($metadati["FILE"]["FileSize"]) ){
@@ -487,75 +488,70 @@ class Image_Manager {
         if( isset($metadati["COMPUTED"]["Width"]) || isset($metadati["COMPUTED"]["Height"]) ){
             $result ['risoluzione'] = $metadati["COMPUTED"]["Width"] . 'x' . $metadati["COMPUTED"]["Height"];
         }
+        if( isset($metadati["EXIF"]["DateTimeOriginal"]) ){
+            $dataScatto_raw = $metadati["EXIF"]["DateTimeOriginal"];
+        }
+        if( isset($metadati["IFD0"]["Make"]) && isset($metadati["IFD0"]["Model"]) ){
+            $marca = $metadati["IFD0"]["Make"];
+            $modello = $metadati["IFD0"]["Model"];
+        }
+        if( isset($metadati["GPS"]["GPSLatitude"]) && isset($metadati["GPS"]["GPSLongitude"]) ){
+            $latitudine = $metadati["GPS"]["GPSLatitude"];
+            $longitudine = $metadati["GPS"]["GPSLongitude"];
+        }
+        
+        
+        //Converto la data scatto in formato d/m/Y H:i:s
+        if ( $dataScatto_raw != '' && $dataScatto_raw != 0 ) {
+            $dt = DateTime::createFromFormat('Y:m:d H:i:s', $dataScatto_raw);
+            $result['data_scatto'] = $dt ? $dt->format('d/m/Y H:i:s') : "";
+            //Formato che richiede API Meteo
+            $dataScattoMeteo = $dt ? $dt->format('Y-m-d') : "";
+            $dataScattoMeteoOra = $dt ? $dt->format('Y-m-d\TH:i') : "";
+        }
 
-        //Verifico le sectionsFound
-        if( isset($metadati["FILE"]["SectionsFound"]) ){
-            $sections = explode(',',$metadati["FILE"]["SectionsFound"]);
-            foreach( $sections as $key => $section ){
-                if( trim($section) == 'EXIF' ){
-                    $dataScatto_raw = $metadati["EXIF"]["DateTimeOriginal"];
-                }
-                if( trim($section) == 'IFD0' ){
-                    $marca = $metadati["IFD0"]["Make"];
-                    $modello = $metadati["IFD0"]["Model"];
-                }
-                if( trim($section) == 'GPS' ){
-                    $latitudine = $metadati["GPS"]["GPSLatitude"];
-                    $longitudine = $metadati["GPS"]["GPSLongitude"];
-                }
-            }
-            
-            //Converto la data scatto in formato d/m/Y H:i:s
-            if ( $dataScatto_raw != '' && $dataScatto_raw != 0 ) {
-                $dt = DateTime::createFromFormat('Y:m:d H:i:s', $dataScatto_raw);
-                $result['data_scatto'] = $dt ? $dt->format('d/m/Y H:i:s') : "";
-                //Formato che richiede API Meteo
-                $dataScattoMeteo = $dt ? $dt->format('Y-m-d') : "";
-                $dataScattoMeteoOra = $dt ? $dt->format('Y-m-d\TH:i') : "";
-            }
+        //Converto la latitudine e longitudine in formato decimale
+        if( $latitudine != '' && $longitudine != '' ){
+            $latitudine_dec = $this->gpsToDecimal(
+                $this->convertExifCoord($latitudine[0], $metadati["GPS"]["GPSLatitudeRef"]),
+                $this->convertExifCoord($latitudine[1], $metadati["GPS"]["GPSLatitudeRef"]),
+                $this->convertExifCoord($latitudine[2], $metadati["GPS"]["GPSLatitudeRef"]),
+                $metadati["GPS"]["GPSLatitudeRef"]
+            );
+            $longitudine_dec = $this->gpsToDecimal(
+                $this->convertExifCoord($longitudine[0], $metadati["GPS"]["GPSLongitudeRef"]),
+                $this->convertExifCoord($longitudine[1], $metadati["GPS"]["GPSLongitudeRef"]),
+                $this->convertExifCoord($longitudine[2], $metadati["GPS"]["GPSLongitudeRef"]),
+                $metadati["GPS"]["GPSLongitudeRef"]
+            );
 
-            //Converto la latitudine e longitudine in formato decimale
-            if( $latitudine != '' && $longitudine != '' ){
-                $latitudine_dec = $this->gpsToDecimal(
-                    $this->convertExifCoord($latitudine[0], $metadati["GPS"]["GPSLatitudeRef"]),
-                    $this->convertExifCoord($latitudine[1], $metadati["GPS"]["GPSLatitudeRef"]),
-                    $this->convertExifCoord($latitudine[2], $metadati["GPS"]["GPSLatitudeRef"]),
-                    $metadati["GPS"]["GPSLatitudeRef"]
-                );
-                $longitudine_dec = $this->gpsToDecimal(
-                    $this->convertExifCoord($longitudine[0], $metadati["GPS"]["GPSLongitudeRef"]),
-                    $this->convertExifCoord($longitudine[1], $metadati["GPS"]["GPSLongitudeRef"]),
-                    $this->convertExifCoord($longitudine[2], $metadati["GPS"]["GPSLongitudeRef"]),
-                    $metadati["GPS"]["GPSLongitudeRef"]
-                );
+            $result['indirizzo'] = $this->getAddressFromPosition( array(
+                'latitudine_dec' => $latitudine_dec,
+                'longitudine_dec' => $longitudine_dec,
+            ),$result);
 
-                $result['indirizzo'] = $this->getAddressFromPosition( array(
+
+            if($result['data_scatto'] != ""){
+                $result["meteo"] = $this->getMeteoFromPosition( array(
                     'latitudine_dec' => $latitudine_dec,
                     'longitudine_dec' => $longitudine_dec,
-                ));
-
-
-                if($result['data_scatto'] != ""){
-                    $result["meteo"] = $this->getMeteoFromPosition( array(
-                        'latitudine_dec' => $latitudine_dec,
-                        'longitudine_dec' => $longitudine_dec,
-                        'date' => $dataScattoMeteo,
-                        'date_hour' => $dataScattoMeteoOra,
-                    ));
-                }
-                //Aggiungo meteo di oggi
-                $result["meteo_today"] = $this->getMeteoFromPosition( array(
-                    'latitudine_dec' => $latitudine_dec,
-                    'longitudine_dec' => $longitudine_dec
-                ));
-            
+                    'date' => $dataScattoMeteo,
+                    'date_hour' => $dataScattoMeteoOra,
+                ),$result);
             }
+            //Aggiungo meteo di oggi
+            $result["meteo_today"] = $this->getMeteoFromPosition( array(
+                'latitudine_dec' => $latitudine_dec,
+                'longitudine_dec' => $longitudine_dec
+            ),$result);
+        
         }
+    
 
         return $result;
     }
 
-    function getAddressFromPosition( $params = array() ){
+    function getAddressFromPosition( $params = array(), &$result ){
         if(!isset($params['latitudine_dec']) || !isset($params['longitudine_dec'])){
             return '';
         }
@@ -571,6 +567,12 @@ class Image_Manager {
         curl_setopt($ch, CURLOPT_RETURNTRANSFER, 1);
         curl_setopt($ch, CURLOPT_USERAGENT, 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36');
         $output = curl_exec($ch);
+        //In caso di errore
+        if(curl_errno($ch)){
+            $result['error'][] = 'CURL Position error: ' . curl_error($ch);
+            curl_close($ch);
+            return '';
+        }
         curl_close($ch);
         $indirizzo = json_decode($output,true);
         if( isset($indirizzo['display_name']) ){
@@ -579,7 +581,7 @@ class Image_Manager {
         return '';   
     }
 
-    function getMeteoFromPosition( $params ){
+    function getMeteoFromPosition( $params = array(), &$result ){
         if(!isset($params['latitudine_dec']) || !isset($params['longitudine_dec'])){
             return '';
         }
@@ -608,8 +610,18 @@ class Image_Manager {
         curl_setopt($ch, CURLOPT_RETURNTRANSFER, 1);
         curl_setopt($ch, CURLOPT_USERAGENT, 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36');
         $output = curl_exec($ch);
+        //In caso di errore
+        if(curl_errno($ch)){
+            $result['error'][] = 'CURL Meteo error: ' . curl_error($ch);
+            curl_close($ch);
+            return '';
+        }
         curl_close($ch);
+
         $meteo = json_decode($output,true);
+        if(!is_array($meteo)){
+            return '';
+        }
         if(isset($params['date'])){
             $unit = $meteo["daily_units"]["temperature_2m_max"];
             $temperatura_max = $meteo['daily']['temperature_2m_max'][0];
